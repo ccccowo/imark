@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  // 学号
+  studentId String? @unique
+  // 教师工号
+  teacherId String? @unique
+
+  username  String   @unique
+  password  String
+  email     String   @unique
+
+  // 角色
+  role      String   // "TEACHER" 或 "STUDENT"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 教师关系
+  teacherClasses Class[] @relation("TeacherClasses")
+  // 学生关系
+  studentClasses StudentClass[]
+  // 考试结果
+  examResults    ExamResult[]
+}
+
+// 班级
+model Class {
+  id          String   @id @default(cuid())
+  name        String
+
+  teacherId   String   @unique
+  teacher     User     @relation("TeacherClasses", fields: [teacherId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  students    StudentClass[]
+  exams       Exam[]
+
+  @@unique([name, teacherId])
+}
+
+// 学生班级关系
+model StudentClass {
+  id        String   @id @default(cuid())
+  studentId String   @unique
+  classId   String
+  student   User     @relation(fields: [studentId], references: [id])
+  class     Class    @relation(fields: [classId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, classId])
+}
+
+// 考试
+model Exam {
+  id          String   @id @default(cuid())
+  name        String
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  status      ExamStatus @default(NOT_READY)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  results     ExamResult[]
+}
+
+// 考试结果
+model ExamResult {
+  id        String   @id @default(cuid())
+  examId    String
+  studentId String
+  score     Float?
+  exam      Exam     @relation(fields: [examId], references: [id])
+  student   User     @relation(fields: [studentId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, studentId])
+}
+
+// 角色
+enum Role {
+  STUDENT
+  TEACHER
+}
+
+// 考试状态
+enum ExamStatus {
+  NOT_READY
+  READY
+  GRADING
+  COMPLETED
+}
