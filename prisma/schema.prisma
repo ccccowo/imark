@@ -35,16 +35,14 @@ model User {
 
 // 班级
 model Class {
-  id          String   @id @default(cuid())
-  name        String
-
-  teacherId   String   @unique
-  teacher     User     @relation("TeacherClasses", fields: [teacherId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  students    StudentClass[]
-  exams       Exam[]
+  id        String   @id @default(cuid())
+  name      String
+  teacherId String
+  teacher   User     @relation("TeacherClasses", fields: [teacherId], references: [id])
+  students  StudentClass[]
+  exams     Exam[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([name, teacherId])
 }

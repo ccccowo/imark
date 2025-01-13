@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Card, Button, Input, Modal, message, Layout, Typography, Space, Row, Col, Spin } from "antd";
-import { LogoutOutlined, PlusOutlined, SearchOutlined, DeleteOutlined, SettingOutlined } from "@ant-design/icons";
+import { Card, Button, Input, Modal, message, Layout, Typography, Space, Row, Col, Spin, Empty, List, Tag, Tabs } from "antd";
+import { LogoutOutlined, PlusOutlined, SearchOutlined, DeleteOutlined, SettingOutlined, BookOutlined, ClockCircleOutlined, TrophyOutlined, HistoryOutlined, TeamOutlined, UserOutlined, FileTextOutlined, EditOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import axiosInstance from '@/lib/axios';
 
 const { Header, Content } = Layout;
@@ -19,6 +19,7 @@ interface Class {
   };
   examStatus: "未准备" | "已准备" | "待批改" | "已完成";
   examName?: string;
+  joinTime: string;
 }
 
 export default function Dashboard() {
@@ -120,97 +121,273 @@ export default function Dashboard() {
       <Content className="pt-20 px-8 pb-8 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto">
           {session.user.role === "TEACHER" && (
-            <>
-              <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-                <div className="flex items-center justify-between">
-                  <Space size="large">
-                    <Button 
-                      type="primary" 
-                      icon={<PlusOutlined />}
-                      onClick={() => setIsModalOpen(true)}
-                      size="large"
-                    >
-                      创建班级
-                    </Button>
-                    <Input.Search
-                      placeholder="搜索班级名称..."
-                      allowClear
-                      value={searchName}
-                      onChange={(e) => setSearchName(e.target.value)}
-                      onSearch={() => fetchClasses(searchName)}
-                      style={{ width: 300 }}
-                      size="large"
-                    />
-                  </Space>
+            <div className="max-w-7xl mx-auto">
+              {/* 欢迎卡片 */}
+              <Card className="mb-6 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <UserOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+                  </div>
+                  <div>
+                    <Title level={5} style={{ margin: 0 }}>欢迎回来，{session.user.username}</Title>
+                    <Text type="secondary">这里是您的教学管理中心</Text>
+                  </div>
                 </div>
-              </div>
+              </Card>
 
               <Row gutter={[16, 16]}>
-                {loading ? (
-                  <Col span={24}>
-                    <div className="flex justify-center items-center py-32">
-                      <Spin size="large" />
-                    </div>
-                  </Col>
-                ) : classes.length === 0 ? (
-                  <Col span={24}>
-                    <div className="bg-white rounded-lg shadow-sm p-16 text-center">
-                      <Text type="secondary" style={{ fontSize: 16 }}>
-                        暂无班级，点击"创建班级"按钮开始添加
-                      </Text>
-                    </div>
-                  </Col>
-                ) : (
-                  classes.map((cls) => (
-                    <Col key={cls.id} xs={24} sm={12} md={8} lg={6}>
-                      <Card
-                        hoverable
-                        className="shadow-sm"
-                        title={
-                          <div className="font-medium">{cls.name}</div>
-                        }
-                        extra={
-                          <Button 
-                            type="text" 
-                            danger 
-                            icon={<DeleteOutlined />}
-                            onClick={() => setClassToDelete(cls)}
-                          />
-                        }
-                        actions={[
-                          <Button 
-                            key="manage" 
-                            type="link" 
-                            icon={<SettingOutlined />}
-                            onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
+                {/* 班级管理 */}
+                <Col span={24} lg={14}>
+                  <Card 
+                    title={
+                      <div className="flex items-center gap-2">
+                        <TeamOutlined />
+                        <span>班级管理</span>
+                      </div>
+                    }
+                    className="shadow-sm"
+                    extra={
+                      <Space>
+                        <Input.Search
+                          placeholder="搜索班级..."
+                          allowClear
+                          value={searchName}
+                          onChange={(e) => setSearchName(e.target.value)}
+                          onSearch={() => fetchClasses(searchName)}
+                          style={{ width: 200 }}
+                        />
+                        <Button 
+                          icon={<PlusOutlined />}
+                          onClick={() => setIsModalOpen(true)}
+                        >
+                          创建班级
+                        </Button>
+                      </Space>
+                    }
+                  >
+                    {loading ? (
+                      <div className="py-20 text-center">
+                        <Spin size="large" />
+                      </div>
+                    ) : classes.length === 0 ? (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="暂无班级，点击“创建班级”按钮开始添加"
+                      />
+                    ) : (
+                      <List
+                        dataSource={classes}
+                        renderItem={(cls) => (
+                          <List.Item
+                            actions={[
+                              <Button 
+                                key="delete" 
+                                type="text"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => setClassToDelete(cls)}
+                              >
+                                删除
+                              </Button>,
+                              <Button 
+                                key="manage" 
+                                type="link"
+                                icon={<SettingOutlined />}
+                                onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
+                              >
+                                管理
+                              </Button>
+                            ]}
                           >
-                            管理班级
-                          </Button>
-                        ]}
-                      >
-                        <div className="flex justify-between items-center">
-                          <Text type="secondary">学生人数</Text>
-                          <Text strong>{cls._count.students}</Text>
-                        </div>
-                      </Card>
-                    </Col>
-                  ))
-                )}
+                            <List.Item.Meta
+                              avatar={<TeamOutlined style={{ fontSize: 20, color: '#1890ff' }} />}
+                              title={cls.name}
+                              description={`${cls._count.students} 名学生`}
+                            />
+                            {cls.examStatus !== "未准备" && (
+                              <Tag color={
+                                cls.examStatus === "已准备" ? "processing" :
+                                cls.examStatus === "待批改" ? "warning" :
+                                "success"
+                              }>
+                                {cls.examName || "考试进行中"}
+                              </Tag>
+                            )}
+                          </List.Item>
+                        )}
+                      />
+                    )}
+                  </Card>
+                </Col>
+
+                {/* 考试管理 */}
+                <Col span={24} lg={10}>
+                  <Card 
+                    title={
+                      <div className="flex items-center gap-2">
+                        <FileTextOutlined />
+                        <span>考试管理</span>
+                      </div>
+                    }
+                    className="shadow-sm"
+                  >
+                    <Tabs
+                      items={[
+                        {
+                          key: 'pending',
+                          label: (
+                            <span>
+                              <ClockCircleOutlined /> 待批改
+                            </span>
+                          ),
+                          children: (
+                            <Empty
+                              image={Empty.PRESENTED_IMAGE_SIMPLE}
+                              description="暂无待批改的考试"
+                            />
+                          ),
+                        },
+                        {
+                          key: 'grading',
+                          label: (
+                            <span>
+                              <EditOutlined /> 批改中
+                            </span>
+                          ),
+                          children: (
+                            <Empty
+                              image={Empty.PRESENTED_IMAGE_SIMPLE}
+                              description="暂无正在批改的考试"
+                            />
+                          ),
+                        },
+                        {
+                          key: 'completed',
+                          label: (
+                            <span>
+                              <CheckCircleOutlined /> 已完成
+                            </span>
+                          ),
+                          children: (
+                            <Empty
+                              image={Empty.PRESENTED_IMAGE_SIMPLE}
+                              description="暂无已完成的考试"
+                            />
+                          ),
+                        },
+                      ]}
+                    />
+                  </Card>
+                </Col>
               </Row>
-            </>
+            </div>
           )}
 
           {session.user.role === "STUDENT" && (
-            <Row gutter={[16, 16]}>
-              <Col span={24} md={8}>
-                <Card 
-                  title="我的考试" 
-                  className="shadow-sm"
-                >
-                  <Text type="secondary">暂无考试安排</Text>
-                </Card>
-              </Col>
-            </Row>
+            <div className="max-w-7xl mx-auto">
+              {/* 欢迎卡片 */}
+              <Card className="mb-6 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <BookOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+                  </div>
+                  <div>
+                    <Title level={5} style={{ margin: 0 }}>欢迎回来，{session.user.username}</Title>
+                    <Text type="secondary">这里是您的学习中心</Text>
+                  </div>
+                </div>
+              </Card>
+
+              <Row gutter={[16, 16]}>
+                {/* 已加入的班级 */}
+                <Col span={24} lg={14}>
+                  <Card 
+                    title={
+                      <div className="flex items-center gap-2">
+                        <TeamOutlined />
+                        <span>已加入的班级</span>
+                      </div>
+                    }
+                    className="shadow-sm"
+                    extra={
+                      <Button 
+                        icon={<PlusOutlined />}
+                        size="small"
+                      >
+                        加入新班级
+                      </Button>
+                    }
+                  >
+                    {loading ? (
+                      <div className="py-20 text-center">
+                        <Spin size="large" />
+                      </div>
+                    ) : classes.length === 0 ? (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="暂未加入任何班级"
+                      />
+                    ) : (
+                      <List
+                        dataSource={classes}
+                        renderItem={(cls) => (
+                          <List.Item
+                            actions={[
+                              <Button 
+                                key="view" 
+                                type="link"
+                                onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
+                              >
+                                查看详情
+                              </Button>
+                            ]}
+                          >
+                            <List.Item.Meta
+                              avatar={<TeamOutlined style={{ fontSize: 20, color: '#1890ff' }} />}
+                              title={cls.name}
+                              description={`加入时间：${new Date(cls.joinTime).toLocaleDateString()}`}
+                            />
+                            {cls.examStatus !== "未准备" && (
+                              <Tag color={
+                                cls.examStatus === "已准备" ? "processing" :
+                                cls.examStatus === "待批改" ? "warning" :
+                                "success"
+                              }>
+                                {cls.examName || "有新考试"}
+                              </Tag>
+                            )}
+                          </List.Item>
+                        )}
+                      />
+                    )}
+                  </Card>
+                </Col>
+
+                {/* 历史考试 */}
+                <Col span={24} lg={10}>
+                  <Card 
+                    title={
+                      <div className="flex items-center gap-2">
+                        <HistoryOutlined />
+                        <span>历史考试</span>
+                      </div>
+                    }
+                    className="shadow-sm"
+                  >
+                    {loading ? (
+                      <div className="py-20 text-center">
+                        <Spin size="large" />
+                      </div>
+                    ) : (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="暂无历史考试记录"
+                      />
+                    )}
+                  </Card>
+                </Col>
+              </Row>
+            </div>
           )}
         </div>
       </Content>
@@ -220,23 +397,35 @@ export default function Dashboard() {
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         footer={null}
+        maskClosable={false}
+        destroyOnClose
       >
         <form
           onSubmit={(e) => {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
-            createClass(formData.get("className") as string);
+            const className = formData.get("className") as string;
+            if (className.trim()) {
+              createClass(className.trim());
+            }
           }}
         >
           <Space direction="vertical" className="w-full">
             <Input
               name="className"
-              placeholder="班级名称"
+              placeholder="请输入班级名称"
               required
+              autoFocus
+              maxLength={50}
             />
-            <Button type="primary" htmlType="submit" block>
-              创建
-            </Button>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setIsModalOpen(false)}>
+                取消
+              </Button>
+              <Button htmlType="submit">
+                创建
+              </Button>
+            </div>
           </Space>
         </form>
       </Modal>

@@ -46,30 +46,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (session.user.role !== 'TEACHER') {
-      return NextResponse.json(
-        { error: "未授权", details: "只有教师可以创建班级" }, 
-        { status: 401 }
-      );
-    }
-
     const { name } = await request.json();
 
-    // 检查是否已存在同名班级
-    const existingClass = await prisma.class.findFirst({
-      where: {
-        name,
-        teacherId: session.user.id,
-      },
-    });
-
-    if (existingClass) {
-      return NextResponse.json(
-        { error: "创建失败", details: `已存在名为"${name}"的班级` }, 
-        { status: 400 }
-      );
-    }
-
+    // 创建班级
     const newClass = await prisma.class.create({
       data: {
         name,
@@ -85,13 +64,6 @@ export async function POST(request: Request) {
     return NextResponse.json(newClass);
   } catch (error: any) {
     console.error('创建班级失败:', error);
-    // 处理 Prisma 的唯一约束错误
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: "创建失败", details: `已存在名为"${name}"的班级` }, 
-        { status: 400 }
-      );
-    }
     return NextResponse.json(
       { error: "创建班级失败", details: error.message }, 
       { status: 500 }
