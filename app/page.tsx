@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Input, Card, message, Tabs, Space } from "antd";
+import { Button, Input, Card, message, Tabs, Space, Typography } from "antd";
 import { UserOutlined, BookOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import axiosInstance from "@/lib/axios";
+
+const { Text } = Typography;
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -94,7 +96,6 @@ export default function Home() {
             required
           />
           <Button 
-            type="primary" 
             htmlType="submit"
             icon={<LoginOutlined />}
             loading={isLoading}
@@ -131,7 +132,6 @@ export default function Home() {
             required
           />
           <Button 
-            type="primary" 
             htmlType="submit"
             icon={<UserAddOutlined />}
             loading={isLoading}
@@ -148,29 +148,52 @@ export default function Home() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card style={{ width: 400 }}>
-        <h1 className="text-2xl font-bold text-center mb-4">在线考试系统</h1>
-        <Space className="w-full mb-6">
-          <Button
-            type={role === "STUDENT" ? "primary" : "default"}
-            icon={<BookOutlined />}
-            onClick={() => setRole("STUDENT")}
-            block
-          >
-            学生
-          </Button>
-          <Button
-            type={role === "TEACHER" ? "primary" : "default"}
-            icon={<UserOutlined />}
-            onClick={() => setRole("TEACHER")}
-            block
-          >
-            教师
-          </Button>
-        </Space>
+        <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">智能阅卷平台</h1>
+        
+        <Card className="mb-6 bg-gray-50 border-dashed">
+          <div className="flex gap-4">
+            <Button
+              type={role === "STUDENT" ? "primary" : "default"}
+              icon={<BookOutlined />}
+              onClick={() => setRole("STUDENT")}
+              block
+              size="large"
+              className={`${role === "STUDENT" ? "shadow-md" : ""} hover:text-blue-600 text-gray-600`}
+              style={{ 
+                borderColor: role === "STUDENT" ? undefined : '#d9d9d9',
+                color: role === "STUDENT" ? undefined : '#595959'
+              }}
+            >
+              我是学生
+            </Button>
+            <Button
+              type={role === "TEACHER" ? "primary" : "default"}
+              icon={<UserOutlined />}
+              onClick={() => setRole("TEACHER")}
+              block
+              size="large"
+              className={`${role === "TEACHER" ? "shadow-md" : ""} hover:text-blue-600 text-gray-600`}
+              style={{ 
+                borderColor: role === "TEACHER" ? undefined : '#d9d9d9',
+                color: role === "TEACHER" ? undefined : '#595959'
+              }}
+            >
+              我是教师
+            </Button>
+          </div>
+          <div className="text-center mt-2">
+            <Text type="secondary" style={{ color: '#595959' }}>
+              当前选择：{role === "STUDENT" ? "学生" : "教师"}身份
+            </Text>
+          </div>
+        </Card>
         
         <Tabs 
           items={items} 
           centered
+          style={{
+            color: '#262626'
+          }}
         />
       </Card>
     </div>
