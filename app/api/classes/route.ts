@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]/route';
+import { generateClassId } from '@/lib/utils';
 
 // 获取班级列表
 export async function GET(request: Request) {
@@ -48,9 +49,25 @@ export async function POST(request: Request) {
 
     const { name } = await request.json();
 
+    // 生成唯一的班级ID
+    let classId = generateClassId();
+    let isUnique = false;
+    
+    while (!isUnique) {
+      const existingClass = await prisma.class.findUnique({
+        where: { id: classId },
+      });
+      if (!existingClass) {
+        isUnique = true;
+      } else {
+        classId = generateClassId();
+      }
+    }
+
     // 创建班级
     const newClass = await prisma.class.create({
       data: {
+        id: classId, // 使用生成的ID
         name,
         teacherId: session.user.id,
       },
