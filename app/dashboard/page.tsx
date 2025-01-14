@@ -7,7 +7,7 @@ import { Layout as AntLayout, Typography, Button, Spin, message } from "antd";
 import { LogoutOutlined } from "@ant-design/icons";
 import { TeacherDashboard } from "./components/TeacherDashboard";
 import { StudentDashboard } from "./components/StudentDashboard";
-import { Class } from "./types";
+import { Class } from "@/app/types";
 import axiosInstance from '@/lib/axios';
 
 const { Header, Content } = AntLayout;

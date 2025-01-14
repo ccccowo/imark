@@ -11,13 +11,14 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
  * 
  * @param {string} params.classId - 班级ID
  * @param {string} params.studentId - 学生ID
- * 
+ * @param {string} params.name - 学生姓名
+ * @param {string} params.studentId - 学生学号
  * @returns {Object} 返回创建的学生-班级关系对象
  * @throws {401} 如果用户未登录或不是教师角色
  * @throws {404} 如果班级或学生不存在
  * @throws {500} 如果操作过程中发生错误
  */
-export async function PUT(
+export async function POST(
   req: Request,
   { params }: { params: { classId: string; studentId: string } }
 ) {
@@ -111,5 +112,57 @@ export async function DELETE(
     return NextResponse.json({ message: "已从班级中移除学生" });
   } catch (error) {
     return NextResponse.json({ error: "删除学生失败" }, { status: 500 });
+  }
+}
+
+
+/**
+ * 更新学生信息的API端点
+ * 
+ * @route PUT /api/students/{studentId}
+ * @access 仅限教师角色
+ * 
+ * @param {string} params.studentId - 学生ID
+ * @param {string} params.name - 学生姓名
+ * @param {string} params.studentId - 学生学号
+ * @returns {Object} 返回创建的学生-班级关系对象
+ * @throws {401} 如果用户未登录或不是教师角色
+ * @throws {404} 如果班级或学生不存在
+ * @throws {500} 如果操作过程中发生错误
+ */
+export async function PUT(
+  request: Request,
+  { params }: { params: { studentId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return NextResponse.json({ error: "未授权" }, { status: 401 });
+    }
+
+    const { name, studentId } = await request.json();
+
+    // 更新学生信息
+    const updatedStudent = await prisma.user.update({
+      where: { id: params.studentId },
+      data: {
+        name,
+        studentId,
+      },
+      select: {
+        id: true,
+        name: true,
+        studentId: true,
+      }
+    });
+
+    return NextResponse.json(updatedStudent);
+  } catch (error) {
+    console.error('更新学生信息失败:', error);
+    return NextResponse.json(
+      { error: "更新失败", details: error instanceof Error ? error.message : '未知错误' },
+      { status: 500 }
+    );
   }
 } 
