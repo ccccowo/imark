@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+// 获取该学生已加入的班级
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -23,7 +24,7 @@ export async function GET() {
     });
 
     // 返回最基本的数据
-    return NextResponse.json(classes.map(cls => ({
+    return NextResponse.json(classes.map((cls: { id: any; name: any; }) => ({
       id: cls.id,
       name: cls.name,
       _count: { students: 0 },

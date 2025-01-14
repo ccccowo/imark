@@ -4,7 +4,7 @@ import { Card, Button, Input, Modal, message, Typography, Space, Row, Col, Spin,
 import { PlusOutlined, BookOutlined, TeamOutlined, HistoryOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Class } from "../types";
+import { Class } from "@/app/types";
 import axiosInstance from '@/lib/axios';
 
 const { Title, Text } = Typography;

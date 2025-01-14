@@ -30,7 +30,7 @@ export async function PUT(
     }
 
     // 从请求体中解析更新信息
-    const { name, status } = await req.json();
+    const { name } = await req.json();
     const { examId } = params;
 
     // 在数据库中更新考试信息
@@ -38,13 +38,16 @@ export async function PUT(
       where: { id: examId },
       data: {
         name,
-        status,
       },
     });
 
     return NextResponse.json(exam);
   } catch (error) {
-    return NextResponse.json({ error: "更新考试失败" }, { status: 500 });
+    console.error('更新考试失败:', error);
+    return NextResponse.json(
+      { error: "更新考试失败" },
+      { status: 500 }
+    );
   }
 }
 
@@ -80,6 +83,10 @@ export async function DELETE(
 
     return NextResponse.json({ message: "考试已删除" });
   } catch (error) {
-    return NextResponse.json({ error: "删除考试失败" }, { status: 500 });
+    console.error('删除考试失败:', error);
+    return NextResponse.json(
+      { error: "删除考试失败" },
+      { status: 500 }
+    );
   }
 } 
