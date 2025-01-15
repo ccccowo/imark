@@ -8,7 +8,7 @@ import { Exam, Examinee } from '@/app/types'
 import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import axiosInstance from '@/lib/axios'
-import { PaperCropModal } from './PaperCropModal'
+import { ViewPaperModal } from './ViewPaperModal'
 
 // 考试管理组件的props
 interface ExamManagementProps {
@@ -36,12 +36,23 @@ export default function ExamManagement({
     onCancelModal,
     onExamNameChange
 }: ExamManagementProps) {
+    // 删除考试
     const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
+    // 删除考试弹窗
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    // 考生列表
     const [examinees, setExaminees] = useState<Examinee[]>([]);
+    // 选中的考试ID
     const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+    // 考生列表弹窗
     const [showExamineesModal, setShowExamineesModal] = useState(false);
+    // 样卷列表
     const [exams, setExams] = useState<Exam[]>([]);
     const [showPaperCropModal, setShowPaperCropModal] = useState(false);
+    const [paperImage, setPaperImage] = useState<string>('');
+    const [showViewPaperModal, setShowViewPaperModal] = useState(false);
+    const [currentPaperUrl, setCurrentPaperUrl] = useState('');
+    const [currentExamId, setCurrentExamId] = useState('');
 
     // 获取考试列表
     const fetchExams = async () => {
@@ -122,7 +133,7 @@ export default function ExamManagement({
         await fetchExaminees(examId);
     };
 
-    // 处理重新上传
+    // 处理考生名单的重新上传
     const handleReupload = async (examId: string, file: File) => {
         Modal.confirm({
             title: '确认重新上传',
@@ -164,6 +175,59 @@ export default function ExamManagement({
                 }
             },
         });
+    };
+
+
+    // 处理上传样卷
+    const handleUploadPaper = (examId: string) => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+
+        fileInput.onchange = (e: Event) => {
+            const target = e.target as HTMLInputElement;
+            const file = target.files?.[0];
+            if (!file) {
+                console.error('No file selected');
+                return;
+            }
+
+            handleFileUpload(file, examId);
+        };
+
+        fileInput.click();
+    };
+
+
+    const handleFileUpload = async (file: File, examId: string) => {
+        const formData = new FormData();
+        formData.append('paper', file);
+
+        try {
+            const response = await axiosInstance.post(
+                `/api/exams/${examId}/paper`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    }
+                }
+            );
+
+            if (response.data && response.data.imageUrl) {
+                message.success('试卷上传成功');
+                // 重新获取考试列表以更新UI
+                await fetchExams();
+                // 如果是在查看模态框中重新上传，更新当前显示的图片
+                setCurrentPaperUrl(response.data.imageUrl);
+            } else {
+                throw new Error('上传响应中没有图片URL');
+            }
+        } catch (error: any) {
+            console.error('Upload error:', error);
+            const errorMessage = error.response?.data?.error || '试卷上传失败';
+            message.error(errorMessage);
+        }
     };
 
     // 考生列表列定义
@@ -238,39 +302,55 @@ export default function ExamManagement({
                 <Space size="middle">
                     {record.status === 'READY' && (
                         <>
-                            <Button
-                                type="link"
-                                onClick={() => handleViewExaminees(record.id)}
-                            >
-                                查看考生
-                            </Button>
-                            <Upload
-                                {...uploadProps(record.id)}
-                                showUploadList={false}
-                                beforeUpload={(file) => {
-                                    if (record.examinees.length > 0) {
-                                        // 如果已有考生，显示重新上传确认
-                                        handleReupload(record.id, file);
-                                    } else {
-                                        // 如果没有考生，直接上传
-                                        handleUploadStudentList(record.id, file);
-                                    }
-                                    return false;
-                                }}
-                            >
-                                <Button type="link">
-                                    {record.examinees.length > 0 ? '重新上传考试单' : '上传考试名单'}
-                                </Button>
-                            </Upload>
-                            <Button
-                                type="link"
-                                onClick={() => {
-                                    setSelectedExamId(record.id);
-                                    setShowPaperCropModal(true);
-                                }}
-                            >
-                                上传样卷
-                            </Button>
+                            {/* 上传考生名单 */}
+                            {
+                                record.examinees.length === 0 ? (
+                                    <Upload
+                                        {...uploadProps(record.id)}
+                                        showUploadList={false}
+                                        beforeUpload={(file) => {
+                                            handleUploadStudentList(record.id, file);
+                                            return false;
+                                        }}
+                                    >
+                                        <Button type="link">
+                                            上传考试名单
+                                        </Button>
+                                    </Upload>
+                                ) : (
+                                    <Button
+                                        type="link"
+                                        onClick={() => handleViewExaminees(record.id)}
+                                    >
+                                        查看考生
+                                    </Button>
+                                )
+                            }
+
+                            {/* 上传样卷 */}
+                            {
+                                record.paperImage === '' ? (
+                                    <Button
+                                        type="link"
+                                        onClick={() => {
+                                            
+                                        }}
+                                    >
+                                        上传样卷
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        type="link"
+                                        onClick={() => {
+                                            setCurrentPaperUrl(record.paperImage || '');
+                                            setCurrentExamId(record.id);
+                                            setShowViewPaperModal(true);
+                                        }}
+                                    >
+                                        查看样卷
+                                    </Button>
+                                )
+                            }
                         </>
                     )}
                     <Button
@@ -282,7 +362,10 @@ export default function ExamManagement({
                     <Button
                         type="link"
                         danger
-                        onClick={() => setExamToDelete(record)}
+                        onClick={() => {
+                            setExamToDelete(record);
+                            setShowDeleteModal(true);
+                        }}
                     >
                         删除
                     </Button>
@@ -308,6 +391,7 @@ export default function ExamManagement({
                 dataSource={exams}
                 rowKey="id"
             />
+            {/* 新建/编辑考试 */}
             <Modal
                 title={editingExam ? "编辑考试" : "新建考试"}
                 open={examModalVisible}
@@ -324,27 +408,49 @@ export default function ExamManagement({
                     </Form.Item>
                 </Form>
             </Modal>
+            {/* 删除考试 */}
             <Modal
                 title="确认删除"
-                open={!!examToDelete}
-                onOk={() => {
+                open={showDeleteModal}
+                onOk={async () => {
                     if (examToDelete) {
-                        onDeleteExam(examToDelete.id);
-                        setExamToDelete(null);
+                        try {
+                            await onDeleteExam(examToDelete.id);
+                            setShowDeleteModal(false);
+                            // 删除成功后重新获取数据
+                            await fetchExams();
+                        } catch (error) {
+                            console.error('删除失败:', error);
+                        }
                     }
                 }}
-                onCancel={() => setExamToDelete(null)}
+                onCancel={() => setShowDeleteModal(false)}
                 okText="确认"
                 cancelText="取消"
                 okButtonProps={{ danger: true }}
             >
                 <p>确定要删除考试"{examToDelete?.name}"吗？此操作不可恢复。</p>
             </Modal>
+            {/* 考生列表 */}
             <Modal
                 title="考生列表"
                 open={showExamineesModal}
                 onCancel={() => setShowExamineesModal(false)}
-                footer={null}
+                footer={[
+                    <Upload
+                        key="reupload"
+                        {...uploadProps(selectedExamId || '')}
+                        showUploadList={false}
+                        beforeUpload={(file) => {
+                            handleReupload(selectedExamId || '', file);
+                            return false;
+                        }}
+                    >
+                        <Button type="primary">
+                            重新上传名单
+                        </Button>
+                    </Upload>
+                ]}
                 width={800}
             >
                 <Table
@@ -354,13 +460,12 @@ export default function ExamManagement({
                     pagination={{ pageSize: 10 }}
                 />
             </Modal>
-            <PaperCropModal
-                visible={showPaperCropModal}
-                examId={selectedExamId}
-                onClose={() => {
-                    setShowPaperCropModal(false);
-                    setSelectedExamId(null);
-                }}
+            <ViewPaperModal
+                visible={showViewPaperModal}
+                paperUrl={currentPaperUrl}
+                examId={currentExamId}
+                onClose={() => setShowViewPaperModal(false)}
+                onReupload={handleUploadPaper}
             />
         </div>
     )
