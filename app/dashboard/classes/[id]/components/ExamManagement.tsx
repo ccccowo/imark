@@ -8,6 +8,7 @@ import { Exam, Examinee } from '@/app/types'
 import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import axiosInstance from '@/lib/axios'
+import { PaperCropModal } from './PaperCropModal'
 
 // 考试管理组件的props
 interface ExamManagementProps {
@@ -40,6 +41,7 @@ export default function ExamManagement({
     const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
     const [showExamineesModal, setShowExamineesModal] = useState(false);
     const [exams, setExams] = useState<Exam[]>([]);
+    const [showPaperCropModal, setShowPaperCropModal] = useState(false);
 
     // 获取考试列表
     const fetchExams = async () => {
@@ -52,12 +54,6 @@ export default function ExamManagement({
         }
     };
 
-    // 处理上传样卷
-    const handleUploadPaper = async (examId: string) => {
-        // TODO: 实现上传样卷的逻辑
-        message.info('上传样卷功能开发中');
-    };
-
     // 处理上传考试名单
     const handleUploadStudentList = async (examId: string, file: File) => {
         try {
@@ -68,7 +64,7 @@ export default function ExamManagement({
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
+
                 // 验证并格式化数据
                 const formattedData = jsonData.map((row: any) => ({
                     name: row['name'],  // 直接使用 Excel 中的列名
@@ -141,7 +137,7 @@ export default function ExamManagement({
                         const sheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[sheetName];
                         const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                        
+
                         const formattedData = jsonData.map((row: any) => ({
                             name: row['name'],
                             studentId: String(row['studentId']),
@@ -216,12 +212,12 @@ export default function ExamManagement({
                         text: '已完成'
                     }
                 }
-                
+
                 const config = statusConfig[status as keyof typeof statusConfig] || {
                     color: 'default',
                     text: status
                 }
-                
+
                 return (
                     <Tag color={config.color}>
                         {config.text}
@@ -248,7 +244,7 @@ export default function ExamManagement({
                             >
                                 查看考生
                             </Button>
-                            <Upload 
+                            <Upload
                                 {...uploadProps(record.id)}
                                 showUploadList={false}
                                 beforeUpload={(file) => {
@@ -263,9 +259,18 @@ export default function ExamManagement({
                                 }}
                             >
                                 <Button type="link">
-                                    {record.examinees.length > 0 ? '重新上传' : '上传名单'}
+                                    {record.examinees.length > 0 ? '重新上传考试单' : '上传考试名单'}
                                 </Button>
                             </Upload>
+                            <Button
+                                type="link"
+                                onClick={() => {
+                                    setSelectedExamId(record.id);
+                                    setShowPaperCropModal(true);
+                                }}
+                            >
+                                上传样卷
+                            </Button>
                         </>
                     )}
                     <Button
@@ -349,6 +354,14 @@ export default function ExamManagement({
                     pagination={{ pageSize: 10 }}
                 />
             </Modal>
+            <PaperCropModal
+                visible={showPaperCropModal}
+                examId={selectedExamId}
+                onClose={() => {
+                    setShowPaperCropModal(false);
+                    setSelectedExamId(null);
+                }}
+            />
         </div>
     )
-} 
+}
