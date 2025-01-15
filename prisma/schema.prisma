@@ -66,10 +66,12 @@ model Exam {
   classId     String
   class       Class    @relation(fields: [classId], references: [id])
   status      ExamStatus @default(NOT_READY)
+  paperImage  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   results     ExamResult[]
   examinees   Examinee[]
+  questions   Question[]
 }
 
 // 考生
@@ -111,4 +113,29 @@ enum ExamStatus {
   READY
   GRADING
   COMPLETED
+}
+
+// 题目类型
+enum QuestionType {
+    // 单选题
+    SINGLE_CHOICE
+    // 多选题
+    MULTIPLE_CHOICE
+    // 填空题
+    FILL_IN_THE_BLANK
+    // 判断题
+    TRUE_OR_FALSE
+    // 简答题
+    SHORT_ANSWER
+}
+
+model Question {
+    id          String   @id @default(cuid())
+    examId      String
+    exam        Exam     @relation(fields: [examId], references: [id])
+    coordinates Json     // 存储题目坐标 {x1,y1,x2,y2}
+    // 题目类型
+    type        QuestionType
+    orderNum    Int      // 题号
+    score       Float    // 分值
 }

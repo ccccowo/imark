@@ -13,6 +13,7 @@ export interface Exam {
     status: 'READY' | 'GRADING' | 'COMPLETED';
     createdAt: string;
     classId: string;
+    paperImage?: string;
     examinees: Examinee[];
 }
 
