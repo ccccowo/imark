@@ -32,7 +32,6 @@ export async function POST(
 
         const fileName = `${Date.now()}.jpg`;
         const filePath = path.join(uploadDir, fileName);
-        const imageUrl = `/uploads/${fileName}`;
         
         const bytes = await (file as Blob).arrayBuffer();
         await fs.writeFile(filePath, Buffer.from(bytes));

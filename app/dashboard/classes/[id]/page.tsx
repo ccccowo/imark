@@ -312,12 +312,14 @@ export default function ClassDetail({ params }: { params: { id: string } }) {
         }
     };
 
-    // 删除考试
+    // 处理删除考试
     const handleDeleteExam = async (examId: string) => {
         try {
             await axiosInstance.delete(`/api/exams/${examId}`);
-            message.success('考试删除成功');
-            fetchExams();
+            message.success('删除成功');
+            // 重新获取考试列表
+            const response = await axiosInstance.get(`/api/classes/${params.id}/exams`);
+            setExams(response.data);
         } catch (error) {
             console.error('删除考试失败:', error);
             message.error('删除考试失败');
@@ -440,7 +442,6 @@ export default function ClassDetail({ params }: { params: { id: string } }) {
                 </Tabs.TabPane>
                 <Tabs.TabPane tab="考试管理" key="exams">
                     <ExamManagement
-                        exams={exams}
                         classId={params.id}
                         examModalVisible={examModalVisible}
                         editingExam={editingExam}

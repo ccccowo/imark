@@ -9,18 +9,19 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
+        // 验证权限
         const session = await getServerSession(authOptions);
-        
-        if (!session?.user || session.user.role !== 'TEACHER') {
+        if (!session?.user) {
             return NextResponse.json({ error: "未授权" }, { status: 401 });
         }
 
+        // 获取考试列表
         const exams = await prisma.exam.findMany({
             where: {
                 classId: params.id
             },
             include: {
-                examinees: true
+                examinees: true  // 包含考生信息
             },
             orderBy: {
                 createdAt: 'desc'
@@ -31,7 +32,7 @@ export async function GET(
     } catch (error) {
         console.error('获取考试列表失败:', error);
         return NextResponse.json(
-            { error: "获取考试列表失败" },
+            { error: '获取考试列表失败' }, 
             { status: 500 }
         );
     }
@@ -53,6 +54,7 @@ export async function POST(
 
         const exam = await prisma.exam.create({
             data: {
+                paperImage: '',
                 name,
                 status: 'READY',
                 classId: params.id,

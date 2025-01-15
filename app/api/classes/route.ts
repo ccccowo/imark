@@ -26,6 +26,9 @@ export async function GET(request: Request) {
         _count: {
           select: { students: true }
         }
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
 
