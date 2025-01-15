@@ -68,7 +68,10 @@ export default function ExamManagement({
     const fetchExams = async () => {
         try {
             const response = await axiosInstance.get(`/api/classes/${classId}/exams`);
-            setExams(response.data);
+            if (response.data) {
+                console.log('Fetched exams:', response.data); // 调试日志
+                setExams(response.data);
+            }
         } catch (error) {
             console.error('获取考试列表失败:', error);
             message.error('获取考试列表失败');
@@ -102,7 +105,7 @@ export default function ExamManagement({
 
                 if (response.status === 200) {
                     message.success(`成功导入 ${response.data.count} 名考生`);
-                    await fetchExams();  // 重新获取考试列表
+                    await fetchExams();  // 刷新状态
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -111,7 +114,7 @@ export default function ExamManagement({
             message.error('上传失败，请确保 Excel 包含 name 和 studentId 列');
         }
     };
-    
+
     const uploadProps = (examId: string): UploadProps => ({
         accept: '.xlsx,.xls',
         showUploadList: false,
@@ -173,8 +176,8 @@ export default function ExamManagement({
 
                         if (response.status === 200) {
                             message.success(response.data.message);
-                            await fetchExams();  // 重新获取考试列表
-                            await fetchExaminees(examId);  // 如果模态框打开，也更新考生列表
+                            await fetchExams();  // 刷新状态
+                            await fetchExaminees(examId);
                         }
                     };
                     reader.readAsArrayBuffer(file);
@@ -224,9 +227,9 @@ export default function ExamManagement({
             );
 
             if (response.data && response.data.imageUrl) {
-                await fetchExams(); // 上传后刷新列表
-                setCurrentPaperUrl(response.data.imageUrl);
                 message.success('试卷上传成功');
+                await fetchExams(); // 刷新状态
+                setCurrentPaperUrl(response.data.imageUrl);
             }
         } catch (error) {
             message.error('试卷上传失败');
@@ -288,9 +291,9 @@ export default function ExamManagement({
             key: 'status',
             render: (status: string) => {
                 const statusConfig = {
-                    READY: { color: 'processing', text: '准备中', icon: '📝' },
-                    GRADING: { color: 'warning', text: '批改中', icon: '🔍' },
-                    COMPLETED: { color: 'success', text: '已完成', icon: '🎉' }
+                    READY: { color: 'processing', text: '准备中', icon: '' },
+                    GRADING: { color: 'warning', text: '批改中', icon: '' },
+                    COMPLETED: { color: 'success', text: '已完成', icon: '' }
                 };
 
                 const config = statusConfig[status as keyof typeof statusConfig];
@@ -314,21 +317,20 @@ export default function ExamManagement({
                                 {...uploadProps(record.id)}
                                 showUploadList={false}
                             >
-                                <Button 
-                                    type="primary" 
-                                    icon={<UploadOutlined />} 
-                                    style={{ backgroundColor: '#1677ff' }}
-                                > 
+                                <Button
+                                    type="link"
+                                >
+                                    <UploadOutlined className="mr-1" />
                                     上传名单
                                 </Button>
                             </Upload>
                         ) : (
-                            <Button 
-                                type="link" 
+                            <Button
+                                type="link"
                                 onClick={() => handleViewExaminees(record.id)}
-                                icon={<TeamOutlined />} 
+                                icon={<TeamOutlined />}
                                 className="text-gray-600 hover:text-blue-500"
-                            > 
+                            >
                                 {examinees.length} 人
                             </Button>
                         )
@@ -354,15 +356,13 @@ export default function ExamManagement({
                             查看样卷
                         </Button>
                     ) : (
-                            <Button
-                                type="text"
-                                variant="filled"
-                                icon={<UploadOutlined />}
-                                style={{ backgroundColor: '#1677ff' }}
-                                onClick={() => handleUploadPaper(record.id)}
-                            >
-                                上传样卷
-                            </Button>
+                        <Button
+                            type="link"
+                            icon={<UploadOutlined className="mr-1" />}
+                            onClick={() => handleUploadPaper(record.id)}
+                        >
+                            上传样卷
+                        </Button>
                     )}
                     <Button
                         type="text"
@@ -391,7 +391,7 @@ export default function ExamManagement({
     // 初始加载和依赖更新时获取考试列表
     useEffect(() => {
         fetchExams();
-    }, [classId]);
+    }, [classId, examModalVisible]);
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -428,10 +428,12 @@ export default function ExamManagement({
                 open={examModalVisible}
                 onOk={async () => {
                     try {
-                        await onSaveExam();
-                        await fetchExams(); // 保存后刷新列表
+                        await onSaveExam();  // 先保存考试
+                        await fetchExams();  // 然后刷新列表
                         message.success(editingExam ? '编辑成功' : '创建成功');
+                        onCancelModal();  // 最后关闭模态框
                     } catch (error) {
+                        console.error('保存考试失败:', error);
                         message.error(editingExam ? '编辑失败' : '创建失败');
                     }
                 }}
@@ -468,9 +470,8 @@ export default function ExamManagement({
                     if (examToDelete) {
                         try {
                             await onDeleteExam(examToDelete.id);
-                            await fetchExams(); // 删除后刷新列表
+                            await fetchExams(); // 刷新列表
                             setShowDeleteModal(false);
-                            message.success('删除成功');
                         } catch (error) {
                             console.error('删除失败:', error);
                             message.error('删除失败');
@@ -560,7 +561,7 @@ export default function ExamManagement({
 
             {/* 查看样卷 */}
             <ViewPaperModal
-                onReupload={handleUploadPaper }
+                onReupload={handleUploadPaper}
                 visible={showViewPaperModal}
                 paperUrl={currentPaperUrl}
                 examId={currentExamId}
