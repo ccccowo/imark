@@ -10,9 +10,10 @@ export interface Student {
 export interface Exam {
     id: string;
     name: string;
-    status: 'NOT_READY' | 'IN_PROGRESS' | 'FINISHED';
+    status: 'READY' | 'GRADING' | 'COMPLETED';
     createdAt: string;
     classId: string;
+    examinees: Examinee[];
 }
 
 // 可编辑单元格组件的属性
@@ -36,3 +37,10 @@ export interface Class {
     examName?: string;
     joinTime: string;
   } 
+export interface Examinee {
+    id: string;
+    name: string;
+    studentId: string;
+    examId: string;
+    createdAt: string;
+} 

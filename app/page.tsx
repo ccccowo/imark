@@ -42,6 +42,7 @@ export default function Home() {
     }
   };
 
+  // 注册
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -58,7 +59,7 @@ export default function Home() {
     }
 
     try {
-      const response = await axiosInstance.post("/api/register", {
+      const response = await axiosInstance.post("/api/auth/register", {
         username,
         password,
         role,

@@ -19,6 +19,9 @@ export async function GET(
             where: {
                 classId: params.id
             },
+            include: {
+                examinees: true
+            },
             orderBy: {
                 createdAt: 'desc'
             }
@@ -51,7 +54,7 @@ export async function POST(
         const exam = await prisma.exam.create({
             data: {
                 name,
-                status: 'NOT_READY',
+                status: 'READY',
                 classId: params.id,
             }
         });
