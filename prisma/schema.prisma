@@ -66,11 +66,15 @@ model Exam {
   classId     String
   class       Class    @relation(fields: [classId], references: [id])
   status      ExamStatus @default(NOT_READY)
+  // 样卷
   paperImage  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // 考试结果
   results     ExamResult[]
+  // 考生
   examinees   Examinee[]
+  // 题目
   questions   Question[]
 }
 
@@ -139,3 +143,5 @@ model Question {
     orderNum    Int      // 题号
     score       Float    // 分值
 }
+
+export type Question

@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Space, Button, Table, Upload, message, Input } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+import { Space, Button, Table, Upload, message, Input, Modal, Tag } from 'antd'
+import { UploadOutlined, UserOutlined, IdcardOutlined, CalendarOutlined, DeleteOutlined, ExclamationCircleOutlined, SearchOutlined } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import * as XLSX from 'xlsx'
@@ -21,6 +21,8 @@ interface StudentManagementProps {
     EditableCell: React.ComponentType<any>
     onDelete: (student: Student) => void
 }
+
+const { Search } = Input
 
 export default function StudentManagement({
     students,
@@ -55,10 +57,16 @@ export default function StudentManagement({
 
     const columns: ColumnsType<Student> = [
         {
-            title: '姓名',
+            title: (
+                <div className="flex items-center">
+                    <UserOutlined className="mr-2 text-blue-500" />
+                    姓名
+                </div>
+            ),
             dataIndex: 'name',
             key: 'name',
-            onCell: (record: Student) => ({
+            width: '30%',
+            onCell: (record) => ({
                 record,
                 dataIndex: 'name',
                 title: '姓名',
@@ -66,16 +74,25 @@ export default function StudentManagement({
                 save: onSave,
             }),
             render: (text: string, record: Student) => (
-                <div onDoubleClick={() => onEdit(record, 'name')}>
-                    {text}
+                <div 
+                    className="cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                    onDoubleClick={() => onEdit(record, 'name')}
+                >
+                    <span className="font-medium">{text}</span>
                 </div>
             ),
         },
         {
-            title: '学号',
+            title: (
+                <div className="flex items-center">
+                    <IdcardOutlined className="mr-2 text-green-500" />
+                    学号
+                </div>
+            ),
             dataIndex: 'studentId',
             key: 'studentId',
-            onCell: (record: Student) => ({
+            width: '30%',
+            onCell: (record) => ({
                 record,
                 dataIndex: 'studentId',
                 title: '学号',
@@ -83,26 +100,51 @@ export default function StudentManagement({
                 save: onSave,
             }),
             render: (text: string, record: Student) => (
-                <div onDoubleClick={() => onEdit(record, 'studentId')}>
-                    {text}
+                <div 
+                    className="cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                    onDoubleClick={() => onEdit(record, 'studentId')}
+                >
+                    <Tag color="blue" className="text-sm">
+                        {text}
+                    </Tag>
                 </div>
             ),
         },
         {
-            title: '加入时间',
+            title: (
+                <div className="flex items-center">
+                    <CalendarOutlined className="mr-2 text-orange-500" />
+                    加入时间
+                </div>
+            ),
             dataIndex: 'joinTime',
             key: 'joinTime',
-            render: (joinTime: string) => new Date(joinTime).toLocaleDateString()
+            width: '25%',
+            render: (date: string) => (
+                <div className="text-gray-500">
+                    {new Date(date).toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}
+                </div>
+            ),
         },
         {
             title: '操作',
             key: 'action',
-            render: (_: any, record: Student) => (
-                <Space size="middle">
-                    <Button type="link" danger onClick={() => onDelete(record)}>
-                        删除
-                    </Button>
-                </Space>
+            render: (_, record) => (
+                <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => onDelete(record)}
+                    className="hover:text-red-600 transition-colors"
+                >
+                    删除
+                </Button>
             ),
         },
     ]
@@ -126,12 +168,42 @@ export default function StudentManagement({
     }
 
     return (
-        <div>
-            <div className="mb-4">
-                <Upload {...uploadProps}>
-                    <Button icon={<UploadOutlined />}>导入学生</Button>
-                </Upload>
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                    <UserOutlined className="mr-2 text-blue-500" />
+                    学生管理
+                    <Tag color="blue" className="ml-3 text-sm">
+                        {students.length} 名学生
+                    </Tag>
+                </h2>
+                <Space>
+                    <Search
+                        placeholder="搜索姓名或学号"
+                        allowClear
+                        enterButton={<SearchOutlined />}
+                        className="w-64"
+                    />
+                    <Button
+                        type="primary"
+                        onClick={() => Modal.info({
+                            title: '使用说明',
+                            icon: <ExclamationCircleOutlined className="text-blue-500" />,
+                            content: (
+                                <div className="mt-4">
+                                    <p>• 双击姓名或学号可以直接编辑</p>
+                                    <p>• 编辑完成后按回车键保存</p>
+                                    <p>• 点击删除按钮可以移除学生</p>
+                                </div>
+                            ),
+                        })}
+                        style={{ backgroundColor: '#1677ff' }}
+                    >
+                        使用说明
+                    </Button>
+                </Space>
             </div>
+
             <Table
                 components={{
                     body: {
@@ -142,6 +214,13 @@ export default function StudentManagement({
                 dataSource={students}
                 rowKey="id"
                 loading={loading}
+                pagination={{
+                    pageSize: 10,
+                    showTotal: (total) => `共 ${total} 条记录`,
+                    showQuickJumper: true,
+                }}
+                className="custom-table"
+                rowClassName="hover:bg-gray-50 transition-colors"
             />
         </div>
     )

@@ -45,3 +45,30 @@ export interface Examinee {
     examId: string;
     createdAt: string;
 } 
+
+// 题目类型
+enum QuestionType {
+    // 单选题
+    SINGLE_CHOICE,
+    // 多选题
+    MULTIPLE_CHOICE,
+    // 填空题
+    FILL_IN_THE_BLANK,
+    // 判断题
+    TRUE_OR_FALSE,
+    // 简答题
+    SHORT_ANSWER
+}
+// 题目
+export interface Question {
+    id: string;
+    examId: string;
+    exam: Exam;
+    coordinates: { x1: number; y1: number; x2: number; y2: number }; // 存储题目坐标 {x1,y1,x2,y2}
+    // 题目类型
+    type: QuestionType;
+    orderNum: number; // 题号
+    score: number; // 分值
+
+
+}

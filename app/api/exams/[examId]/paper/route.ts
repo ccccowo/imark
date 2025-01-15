@@ -5,8 +5,10 @@ import fs from 'fs/promises';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+
 const prisma = new PrismaClient();
 
+// 上传样卷
 export async function POST(
     request: Request,
     { params }: { params: { examId: string } }
@@ -39,12 +41,16 @@ export async function POST(
         // 更新数据库
         try {
             const imageUrl = `/uploads/${fileName}`;
+            
             await prisma.exam.update({
                 where: {
                     id: params.examId
                 },
                 data: {
-                    paperImage: imageUrl
+                    paperImage: imageUrl,
+                    questions: {
+                        deleteMany: {}  // 先删除所有现有题目
+                    }
                 }
             });
 

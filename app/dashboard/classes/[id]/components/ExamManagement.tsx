@@ -1,7 +1,17 @@
 'use client'
 
 import { Space, Button, Table, Modal, Form, Input, message, Tag, Upload } from 'antd'
-import { UploadOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import {
+    UploadOutlined,
+    ExclamationCircleOutlined,
+    PlusOutlined,
+    EditOutlined,
+    DeleteOutlined,
+    TeamOutlined,
+    FileImageOutlined,
+    LoadingOutlined,
+    InfoCircleOutlined
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { UploadProps } from 'antd'
 import { Exam, Examinee } from '@/app/types'
@@ -64,7 +74,6 @@ export default function ExamManagement({
             message.error('获取考试列表失败');
         }
     };
-
     // 处理上传考试名单
     const handleUploadStudentList = async (examId: string, file: File) => {
         try {
@@ -102,7 +111,7 @@ export default function ExamManagement({
             message.error('上传失败，请确保 Excel 包含 name 和 studentId 列');
         }
     };
-
+    
     const uploadProps = (examId: string): UploadProps => ({
         accept: '.xlsx,.xls',
         showUploadList: false,
@@ -215,18 +224,12 @@ export default function ExamManagement({
             );
 
             if (response.data && response.data.imageUrl) {
-                message.success('试卷上传成功');
-                // 重新获取考试列表以更新UI
-                await fetchExams();
-                // 如果是在查看模态框中重新上传，更新当前显示的图片
+                await fetchExams(); // 上传后刷新列表
                 setCurrentPaperUrl(response.data.imageUrl);
-            } else {
-                throw new Error('上传响应中没有图片URL');
+                message.success('试卷上传成功');
             }
-        } catch (error: any) {
-            console.error('Upload error:', error);
-            const errorMessage = error.response?.data?.error || '试卷上传失败';
-            message.error(errorMessage);
+        } catch (error) {
+            message.error('试卷上传失败');
         }
     };
 
@@ -236,26 +239,48 @@ export default function ExamManagement({
             title: '姓名',
             dataIndex: 'name',
             key: 'name',
+            render: (text) => (
+                <div className="font-medium text-gray-800">
+                    <span className="mr-2">👤</span>
+                    {text}
+                </div>
+            )
         },
         {
             title: '学号',
             dataIndex: 'studentId',
             key: 'studentId',
+            render: (text) => (
+                <div className="text-gray-600">
+                    <span className="mr-2">🔢</span>
+                    {text}
+                </div>
+            )
         },
         {
             title: '导入时间',
             dataIndex: 'createdAt',
             key: 'createdAt',
-            render: (date: string) => new Date(date).toLocaleString()
+            render: (date: string) => (
+                <div className="text-gray-500">
+                    <span className="mr-2">🕒</span>
+                    {new Date(date).toLocaleString()}
+                </div>
+            )
         },
     ];
 
     // 考试列表列定义
-    const examColumns: ColumnsType<Exam> = [
+    const columns: ColumnsType<Exam> = [
         {
             title: '考试名称',
             dataIndex: 'name',
             key: 'name',
+            render: (text, record) => (
+                <div className="flex items-center">
+                    <span className="font-medium text-gray-800">{text}</span>
+                </div>
+            )
         },
         {
             title: '状态',
@@ -263,105 +288,94 @@ export default function ExamManagement({
             key: 'status',
             render: (status: string) => {
                 const statusConfig = {
-                    READY: {
-                        color: 'processing',
-                        text: '准备中'
-                    },
-                    GRADING: {
-                        color: 'warning',
-                        text: '批改中'
-                    },
-                    COMPLETED: {
-                        color: 'success',
-                        text: '已完成'
-                    }
-                }
+                    READY: { color: 'processing', text: '准备中', icon: '📝' },
+                    GRADING: { color: 'warning', text: '批改中', icon: '🔍' },
+                    COMPLETED: { color: 'success', text: '已完成', icon: '🎉' }
+                };
 
-                const config = statusConfig[status as keyof typeof statusConfig] || {
-                    color: 'default',
-                    text: status
-                }
-
+                const config = statusConfig[status as keyof typeof statusConfig];
                 return (
-                    <Tag color={config.color}>
+                    <Tag color={config.color} className="px-3 py-1 rounded-full">
+                        <span className="mr-1">{config.icon}</span>
                         {config.text}
                     </Tag>
-                )
+                );
             }
         },
         {
-            title: '创建时间',
-            dataIndex: 'createdAt',
-            key: 'createdAt',
-            render: (date: string) => new Date(date).toLocaleString()
+            title: '考生人数',
+            dataIndex: 'examinees',
+            key: 'examinees',
+            render: (examinees, record) => (
+                <Space>
+                    {
+                        Array.isArray(examinees) && examinees.length === 0 ? (
+                            <Upload
+                                {...uploadProps(record.id)}
+                                showUploadList={false}
+                            >
+                                <Button 
+                                    type="primary" 
+                                    icon={<UploadOutlined />} 
+                                    style={{ backgroundColor: '#1677ff' }}
+                                > 
+                                    上传名单
+                                </Button>
+                            </Upload>
+                        ) : (
+                            <Button 
+                                type="link" 
+                                onClick={() => handleViewExaminees(record.id)}
+                                icon={<TeamOutlined />} 
+                                className="text-gray-600 hover:text-blue-500"
+                            > 
+                                {examinees.length} 人
+                            </Button>
+                        )
+                    }
+                </Space>
+            )
         },
         {
             title: '操作',
             key: 'action',
-            render: (_: any, record: Exam) => (
+            render: (_, record) => (
                 <Space size="middle">
-                    {record.status === 'READY' && (
-                        <>
-                            {/* 上传考生名单 */}
-                            {
-                                record.examinees.length === 0 ? (
-                                    <Upload
-                                        {...uploadProps(record.id)}
-                                        showUploadList={false}
-                                        beforeUpload={(file) => {
-                                            handleUploadStudentList(record.id, file);
-                                            return false;
-                                        }}
-                                    >
-                                        <Button type="link">
-                                            上传考试名单
-                                        </Button>
-                                    </Upload>
-                                ) : (
-                                    <Button
-                                        type="link"
-                                        onClick={() => handleViewExaminees(record.id)}
-                                    >
-                                        查看考生
-                                    </Button>
-                                )
-                            }
-
-                            {/* 上传样卷 */}
-                            {
-                                record.paperImage === '' ? (
-                                    <Button
-                                        type="link"
-                                        onClick={() => {
-                                            
-                                        }}
-                                    >
-                                        上传样卷
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        type="link"
-                                        onClick={() => {
-                                            setCurrentPaperUrl(record.paperImage || '');
-                                            setCurrentExamId(record.id);
-                                            setShowViewPaperModal(true);
-                                        }}
-                                    >
-                                        查看样卷
-                                    </Button>
-                                )
-                            }
-                        </>
+                    {record.paperImage !== '' ? (
+                        <Button
+                            type="link"
+                            icon={<FileImageOutlined className="text-blue-500" />}
+                            onClick={() => {
+                                setCurrentPaperUrl(record.paperImage!);
+                                setCurrentExamId(record.id);
+                                setShowViewPaperModal(true);
+                            }}
+                        >
+                            查看样卷
+                        </Button>
+                    ) : (
+                            <Button
+                                type="text"
+                                variant="filled"
+                                icon={<UploadOutlined />}
+                                style={{ backgroundColor: '#1677ff' }}
+                                onClick={() => handleUploadPaper(record.id)}
+                            >
+                                上传样卷
+                            </Button>
                     )}
                     <Button
-                        type="link"
+                        type="text"
+                        icon={<EditOutlined />}
                         onClick={() => onEditExam(record)}
+                        className="text-blue-500 hover:text-blue-600"
                     >
                         编辑
                     </Button>
                     <Button
-                        type="link"
+                        type="text"
                         danger
+                        icon={<DeleteOutlined />}
                         onClick={() => {
                             setExamToDelete(record);
                             setShowDeleteModal(true);
@@ -370,9 +384,9 @@ export default function ExamManagement({
                         删除
                     </Button>
                 </Space>
-            ),
-        },
-    ]
+            )
+        }
+    ];
 
     // 初始加载和依赖更新时获取考试列表
     useEffect(() => {
@@ -380,92 +394,177 @@ export default function ExamManagement({
     }, [classId]);
 
     return (
-        <div>
-            <div className="mb-4">
-                <Button onClick={onCreateExam}>
-                    新建考试
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">考试管理</h2>
+                <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={onCreateExam}
+                    style={{ backgroundColor: '#1677ff' }}
+                >
+                    创建考试
                 </Button>
             </div>
+
             <Table
-                columns={examColumns}
+                columns={columns}
                 dataSource={exams}
                 rowKey="id"
+                pagination={{ pageSize: 10 }}
+                className="custom-table"
             />
-            {/* 新建/编辑考试 */}
+
+            {/* 考试表单模态框 */}
             <Modal
-                title={editingExam ? "编辑考试" : "新建考试"}
+                title={
+                    <div className="flex items-center">
+                        <span className="mr-2">
+                            {editingExam ? <EditOutlined /> : <PlusOutlined />}
+                        </span>
+                        {editingExam ? '编辑考试' : '创建考试'}
+                    </div>
+                }
                 open={examModalVisible}
-                onOk={onSaveExam}
+                onOk={async () => {
+                    try {
+                        await onSaveExam();
+                        await fetchExams(); // 保存后刷新列表
+                        message.success(editingExam ? '编辑成功' : '创建成功');
+                    } catch (error) {
+                        message.error(editingExam ? '编辑失败' : '创建失败');
+                    }
+                }}
                 onCancel={onCancelModal}
+                okText="保存"
+                cancelText="取消"
             >
-                <Form layout="vertical">
-                    <Form.Item label="考试名称" required>
+                <Form layout="vertical" className="mt-4">
+                    <Form.Item
+                        label="考试名称"
+                        required
+                        rules={[{ required: true, message: '请输入考试名称' }]}
+                    >
                         <Input
                             value={examName}
                             onChange={e => onExamNameChange(e.target.value)}
                             placeholder="请输入考试名称"
+                            prefix={<EditOutlined className="text-gray-400" />}
                         />
                     </Form.Item>
                 </Form>
             </Modal>
+
             {/* 删除考试 */}
             <Modal
-                title="确认删除"
+                title={
+                    <div className="flex items-center text-red-500">
+                        <ExclamationCircleOutlined className="mr-2 text-xl" />
+                        确认删除
+                    </div>
+                }
                 open={showDeleteModal}
                 onOk={async () => {
                     if (examToDelete) {
                         try {
                             await onDeleteExam(examToDelete.id);
+                            await fetchExams(); // 删除后刷新列表
                             setShowDeleteModal(false);
-                            // 删除成功后重新获取数据
-                            await fetchExams();
+                            message.success('删除成功');
                         } catch (error) {
                             console.error('删除失败:', error);
+                            message.error('删除失败');
                         }
                     }
                 }}
                 onCancel={() => setShowDeleteModal(false)}
-                okText="确认"
+                okText="确认删除"
                 cancelText="取消"
-                okButtonProps={{ danger: true }}
+                okButtonProps={{
+                    danger: true,
+                    icon: <DeleteOutlined />
+                }}
+                className="delete-modal"
             >
-                <p>确定要删除考试"{examToDelete?.name}"吗？此操作不可恢复。</p>
+                <div className="py-4">
+                    <p className="text-gray-600 mb-2">
+                        确定要删除以下考试吗？此操作不可恢复。
+                    </p>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                        <div className="font-medium text-gray-800">
+                            {examToDelete?.name}
+                        </div>
+                        <div className="text-gray-500 text-sm mt-1">
+                            考生人数: {examToDelete?.examinees.length || 0}
+                        </div>
+                    </div>
+                </div>
             </Modal>
-            {/* 考生列表 */}
+
+            {/* 考生列表模态框 */}
             <Modal
-                title="考生列表"
+                title={
+                    <div className="flex items-center">
+                        <TeamOutlined className="mr-2 text-blue-500" />
+                        <span className="font-bold">考生列表</span>
+                        <span className="ml-2 text-gray-400 text-sm font-normal">
+                            (共 {examinees.length} 人)
+                        </span>
+                    </div>
+                }
                 open={showExamineesModal}
                 onCancel={() => setShowExamineesModal(false)}
-                footer={[
-                    <Upload
-                        key="reupload"
-                        {...uploadProps(selectedExamId || '')}
-                        showUploadList={false}
-                        beforeUpload={(file) => {
-                            handleReupload(selectedExamId || '', file);
-                            return false;
-                        }}
-                    >
-                        <Button type="primary">
-                            重新上传名单
-                        </Button>
-                    </Upload>
-                ]}
+                footer={
+                    <div className="flex justify-between items-center">
+                        <div className="text-gray-500 text-sm">
+                            提示: 重新上传将覆盖现有名单
+                        </div>
+                        <Upload
+                            {...uploadProps(selectedExamId || '')}
+                            showUploadList={false}
+                            beforeUpload={(file) => {
+                                handleReupload(selectedExamId || '', file);
+                                return false;
+                            }}
+                        >
+                            <Button
+                                type="primary"
+                                icon={<UploadOutlined />}
+                                style={{ backgroundColor: '#1677ff' }}
+                            >
+                                重新上传名单
+                            </Button>
+                        </Upload>
+                    </div>
+                }
                 width={800}
+                className="examinees-modal"
             >
+                <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                    <div className="text-blue-600 text-sm">
+                        <InfoCircleOutlined className="mr-2" />
+                        请确保上传的 Excel 文件包含"name"和"studentId"列
+                    </div>
+                </div>
                 <Table
                     columns={examineeColumns}
                     dataSource={examinees}
                     rowKey="id"
-                    pagination={{ pageSize: 10 }}
+                    pagination={{
+                        pageSize: 10,
+                        showTotal: (total) => `共 ${total} 条记录`
+                    }}
+                    className="custom-table"
                 />
             </Modal>
+
+            {/* 查看样卷 */}
             <ViewPaperModal
+                onReupload={handleUploadPaper }
                 visible={showViewPaperModal}
                 paperUrl={currentPaperUrl}
                 examId={currentExamId}
                 onClose={() => setShowViewPaperModal(false)}
-                onReupload={handleUploadPaper}
             />
         </div>
     )
