@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, email, password, role } = body;
+    const { username, password, role } = body;
 
     // 验证必填字段
     if (!username || !password || !role) {
@@ -41,13 +41,13 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await hash(password, 10);
-
     const user = await prisma.user.create({
       data: {
         username,
-        email: email || null, // 邮箱可选
         password: hashedPassword,
-        role
+        role,
+        name: username, // 添加必需的name字段
+        email: `${username}@example.com` // 添加必需的email字段
       }
     });
 

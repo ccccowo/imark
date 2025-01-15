@@ -1,12 +1,16 @@
 'use client'
 
-import { Space, Button, Table, Modal, Form, Input, message, Tag } from 'antd'
+import { Space, Button, Table, Modal, Form, Input, message, Tag, Upload } from 'antd'
+import { UploadOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { Exam } from '@/app/types'
-import { useState } from 'react'
+import type { UploadProps } from 'antd'
+import { Exam, Examinee } from '@/app/types'
+import { useState, useEffect } from 'react'
+import * as XLSX from 'xlsx'
+import axiosInstance from '@/lib/axios'
 
+// 考试管理组件的props
 interface ExamManagementProps {
-    exams: Exam[]
     classId: string
     examModalVisible: boolean
     editingExam: Exam | null
@@ -20,7 +24,6 @@ interface ExamManagementProps {
 }
 
 export default function ExamManagement({
-    exams,
     classId,
     examModalVisible,
     editingExam,
@@ -33,7 +36,161 @@ export default function ExamManagement({
     onExamNameChange
 }: ExamManagementProps) {
     const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
+    const [examinees, setExaminees] = useState<Examinee[]>([]);
+    const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+    const [showExamineesModal, setShowExamineesModal] = useState(false);
+    const [exams, setExams] = useState<Exam[]>([]);
 
+    // 获取考试列表
+    const fetchExams = async () => {
+        try {
+            const response = await axiosInstance.get(`/api/classes/${classId}/exams`);
+            setExams(response.data);
+        } catch (error) {
+            console.error('获取考试列表失败:', error);
+            message.error('获取考试列表失败');
+        }
+    };
+
+    // 处理上传样卷
+    const handleUploadPaper = async (examId: string) => {
+        // TODO: 实现上传样卷的逻辑
+        message.info('上传样卷功能开发中');
+    };
+
+    // 处理上传考试名单
+    const handleUploadStudentList = async (examId: string, file: File) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = e.target?.result;
+                const workbook = XLSX.read(new Uint8Array(data as ArrayBuffer), { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                // 验证并格式化数据
+                const formattedData = jsonData.map((row: any) => ({
+                    name: row['name'],  // 直接使用 Excel 中的列名
+                    studentId: String(row['studentId']),  // 直接使用 Excel 中的列名
+                })).filter(item => item.name && item.studentId); // 过滤掉无效数据
+
+                if (formattedData.length === 0) {
+                    throw new Error('Excel 文件中没有有效数据');
+                }
+
+                // 发送到后端API
+                const response = await axiosInstance.post(`/api/exams/${examId}/students`, {
+                    students: formattedData
+                });
+
+                if (response.status === 200) {
+                    message.success(`成功导入 ${response.data.count} 名考生`);
+                    await fetchExams();  // 重新获取考试列表
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (error) {
+            console.error('上传失败:', error);
+            message.error('上传失败，请确保 Excel 包含 name 和 studentId 列');
+        }
+    };
+
+    const uploadProps = (examId: string): UploadProps => ({
+        accept: '.xlsx,.xls',
+        showUploadList: false,
+        beforeUpload: (file) => {
+            handleUploadStudentList(examId, file);
+            return false;
+        },
+    });
+
+    // 获取考生列表
+    const fetchExaminees = async (examId: string) => {
+        try {
+            const response = await axiosInstance.get(`/api/exams/${examId}/students`);
+            setExaminees(response.data);  // 直接设置返回的数组
+        } catch (error) {
+            console.error('获取考生列表失败:', error);
+            message.error('获取考生列表失败');
+        }
+    };
+
+    // 处理查看考生
+    const handleViewExaminees = async (examId: string) => {
+        // 设置选中的考试ID
+        setSelectedExamId(examId);
+        // 显示考生列表弹窗
+        setShowExamineesModal(true);
+        // 获取考生列表
+        await fetchExaminees(examId);
+    };
+
+    // 处理重新上传
+    const handleReupload = async (examId: string, file: File) => {
+        Modal.confirm({
+            title: '确认重新上传',
+            icon: <ExclamationCircleOutlined />,
+            content: '重新上传将覆盖现有考生名单，是否继续？',
+            onOk: async () => {
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const data = e.target?.result;
+                        const workbook = XLSX.read(new Uint8Array(data as ArrayBuffer), { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                        
+                        const formattedData = jsonData.map((row: any) => ({
+                            name: row['name'],
+                            studentId: String(row['studentId']),
+                        })).filter(item => item.name && item.studentId);
+
+                        if (formattedData.length === 0) {
+                            throw new Error('Excel 文件中没有有效数据');
+                        }
+
+                        const response = await axiosInstance.put(`/api/exams/${examId}/students`, {
+                            students: formattedData
+                        });
+
+                        if (response.status === 200) {
+                            message.success(response.data.message);
+                            await fetchExams();  // 重新获取考试列表
+                            await fetchExaminees(examId);  // 如果模态框打开，也更新考生列表
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                } catch (error) {
+                    console.error('上传失败:', error);
+                    message.error('上传失败，请确保 Excel 包含 name 和 studentId 列');
+                }
+            },
+        });
+    };
+
+    // 考生列表列定义
+    const examineeColumns: ColumnsType<Examinee> = [
+        {
+            title: '姓名',
+            dataIndex: 'name',
+            key: 'name',
+        },
+        {
+            title: '学号',
+            dataIndex: 'studentId',
+            key: 'studentId',
+        },
+        {
+            title: '导入时间',
+            dataIndex: 'createdAt',
+            key: 'createdAt',
+            render: (date: string) => new Date(date).toLocaleString()
+        },
+    ];
+
+    // 考试列表列定义
     const examColumns: ColumnsType<Exam> = [
         {
             title: '考试名称',
@@ -46,17 +203,17 @@ export default function ExamManagement({
             key: 'status',
             render: (status: string) => {
                 const statusConfig = {
-                    NOT_READY: {
-                        color: 'default',
-                        text: '未准备'
-                    },
-                    IN_PROGRESS: {
+                    READY: {
                         color: 'processing',
-                        text: '进行中'
+                        text: '准备中'
                     },
-                    FINISHED: {
+                    GRADING: {
+                        color: 'warning',
+                        text: '批改中'
+                    },
+                    COMPLETED: {
                         color: 'success',
-                        text: '已结束'
+                        text: '已完成'
                     }
                 }
                 
@@ -83,6 +240,34 @@ export default function ExamManagement({
             key: 'action',
             render: (_: any, record: Exam) => (
                 <Space size="middle">
+                    {record.status === 'READY' && (
+                        <>
+                            <Button
+                                type="link"
+                                onClick={() => handleViewExaminees(record.id)}
+                            >
+                                查看考生
+                            </Button>
+                            <Upload 
+                                {...uploadProps(record.id)}
+                                showUploadList={false}
+                                beforeUpload={(file) => {
+                                    if (record.examinees.length > 0) {
+                                        // 如果已有考生，显示重新上传确认
+                                        handleReupload(record.id, file);
+                                    } else {
+                                        // 如果没有考生，直接上传
+                                        handleUploadStudentList(record.id, file);
+                                    }
+                                    return false;
+                                }}
+                            >
+                                <Button type="link">
+                                    {record.examinees.length > 0 ? '重新上传' : '上传名单'}
+                                </Button>
+                            </Upload>
+                        </>
+                    )}
                     <Button
                         type="link"
                         onClick={() => onEditExam(record)}
@@ -100,6 +285,11 @@ export default function ExamManagement({
             ),
         },
     ]
+
+    // 初始加载和依赖更新时获取考试列表
+    useEffect(() => {
+        fetchExams();
+    }, [classId]);
 
     return (
         <div>
@@ -144,6 +334,20 @@ export default function ExamManagement({
                 okButtonProps={{ danger: true }}
             >
                 <p>确定要删除考试"{examToDelete?.name}"吗？此操作不可恢复。</p>
+            </Modal>
+            <Modal
+                title="考生列表"
+                open={showExamineesModal}
+                onCancel={() => setShowExamineesModal(false)}
+                footer={null}
+                width={800}
+            >
+                <Table
+                    columns={examineeColumns}
+                    dataSource={examinees}
+                    rowKey="id"
+                    pagination={{ pageSize: 10 }}
+                />
             </Modal>
         </div>
     )

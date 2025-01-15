@@ -162,11 +162,6 @@ export default function ClassDetail({ params }: { params: { id: string } }) {
         }
     }
 
-    //   创建考试
-    const handleCreateExam = async () => {
-        // 创建考试的逻辑
-    }
-
     const isEditing = (record: Student, field: string) =>
         record.id === editingKey && editingField === field
 

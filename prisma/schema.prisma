@@ -10,7 +10,6 @@ datasource db {
 model User {
   id        String   @id @default(cuid())
   name      String
-  sex       String
   // 学号
   studentId String? @unique
   // 教师工号
@@ -18,7 +17,7 @@ model User {
 
   username  String   @unique
   password  String
-  email     String   @unique
+  email     String?  @unique
 
   // 角色
   role      String   // "TEACHER" 或 "STUDENT"
@@ -69,8 +68,21 @@ model Exam {
   status      ExamStatus @default(NOT_READY)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
   results     ExamResult[]
+  examinees   Examinee[]
+}
+
+// 考生
+model Examinee {
+  id          String   @id @default(cuid())
+  name        String
+  studentId   String
+  examId      String
+  exam        Exam     @relation(fields: [examId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([examId, studentId])
 }
 
 // 考试结果

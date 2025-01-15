@@ -12,7 +12,7 @@ CREATE TABLE "User" (
     "teacherId" TEXT,
     "username" TEXT NOT NULL,
     "password" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
+    "email" TEXT,
     "role" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE "StudentClass" (
     "id" TEXT NOT NULL,
     "studentId" TEXT NOT NULL,
     "classId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "joinTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "StudentClass_pkey" PRIMARY KEY ("id")
 );
@@ -51,6 +51,18 @@ CREATE TABLE "Exam" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Exam_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Examinee" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "examId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Examinee_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -78,16 +90,13 @@ CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Class_teacherId_key" ON "Class"("teacherId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Class_name_teacherId_key" ON "Class"("name", "teacherId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "StudentClass_studentId_key" ON "StudentClass"("studentId");
+CREATE UNIQUE INDEX "StudentClass_studentId_classId_key" ON "StudentClass"("studentId", "classId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "StudentClass_studentId_classId_key" ON "StudentClass"("studentId", "classId");
+CREATE UNIQUE INDEX "Examinee_examId_studentId_key" ON "Examinee"("examId", "studentId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ExamResult_examId_studentId_key" ON "ExamResult"("examId", "studentId");
@@ -103,6 +112,9 @@ ALTER TABLE "StudentClass" ADD CONSTRAINT "StudentClass_classId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "Exam" ADD CONSTRAINT "Exam_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Examinee" ADD CONSTRAINT "Examinee_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ExamResult" ADD CONSTRAINT "ExamResult_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
