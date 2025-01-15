@@ -68,6 +68,8 @@ model Exam {
   status      ExamStatus @default(NOT_READY)
   // 样卷
   paperImage  String?
+  // 总分
+  totalScore  Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   // 考试结果
@@ -143,5 +145,3 @@ model Question {
     orderNum    Int      // 题号
     score       Float    // 分值
 }
-
-export type Question
