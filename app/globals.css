@@ -80,3 +80,302 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* 自定义表格样式 */
+.custom-table .ant-table {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.custom-table .ant-table-thead > tr > th {
+    background-color: #f8fafc;
+    font-weight: 600;
+}
+
+.custom-table .ant-table-tbody > tr:hover > td {
+    background-color: #f0f7ff;
+}
+
+/* 自定义标签样式 */
+.ant-tag {
+    border: none;
+    padding: 4px 12px;
+    font-weight: 500;
+}
+
+/* 自定义按钮过渡效果 */
+.ant-btn {
+    transition: all 0.2s;
+}
+
+.ant-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 模态框样式 */
+.delete-modal .ant-modal-content,
+.examinees-modal .ant-modal-content,
+.paper-modal .ant-modal-content {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.delete-modal .ant-modal-header,
+.examinees-modal .ant-modal-header,
+.paper-modal .ant-modal-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.delete-modal .ant-modal-body,
+.examinees-modal .ant-modal-body,
+.paper-modal .ant-modal-body {
+    padding: 24px;
+    background-color: white;
+}
+
+/* 移除多余的阴影效果 */
+.paper-modal .ant-modal-content > div {
+    box-shadow: none;
+}
+
+.paper-modal .bg-white {
+    box-shadow: none;
+}
+
+/* 表格内容居中对齐 */
+.custom-table .ant-table-cell {
+    vertical-align: middle;
+}
+
+/* 表格hover效果增强 */
+.custom-table .ant-table-tbody > tr:hover > td {
+    background-color: #f0f7ff !important;
+    transition: background-color 0.3s ease;
+}
+
+/* 分页器样式优化 */
+.ant-pagination-total-text {
+    color: #666;
+}
+
+/* 上传按钮悬浮效果 */
+.ant-upload-button {
+    transition: all 0.3s ease;
+}
+
+.ant-upload-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* 搜索框样式 */
+.ant-input-search .ant-input {
+    border-radius: 8px 0 0 8px;
+}
+
+.ant-input-search .ant-input-search-button {
+    border-radius: 0 8px 8px 0;
+    background-color: #1677ff;
+}
+
+/* 编辑单元格样式 */
+.editable-cell {
+    position: relative;
+}
+
+.editable-cell-value-wrap {
+    padding: 5px 12px;
+    cursor: pointer;
+}
+
+.editable-row:hover .editable-cell-value-wrap {
+    padding: 4px 11px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+}
+
+/* 表格加载状态样式 */
+.ant-table-wrapper .ant-spin-container {
+    transition: all 0.3s ease;
+}
+
+.ant-table-wrapper .ant-spin {
+    max-height: 400px;
+}
+
+/* 表格空状态样式 */
+.ant-table-empty .ant-table-placeholder {
+    padding: 48px;
+    color: #666;
+}
+
+.ant-table-empty .ant-table-placeholder .ant-empty-description {
+    color: #999;
+}
+
+/* 班级管理标签页样式 */
+.class-tabs .ant-tabs-nav {
+    margin-bottom: 0;
+}
+
+.class-tabs .ant-tabs-nav::before {
+    border-bottom: none;
+}
+
+.class-tabs .ant-tabs-tab {
+    padding: 12px 0;
+    margin: 0 16px;
+    transition: all 0.3s ease;
+}
+
+.class-tabs .ant-tabs-tab:hover {
+    color: #1677ff;
+}
+
+.class-tabs .ant-tabs-tab-active {
+    font-weight: 600;
+}
+
+.class-tabs .ant-tabs-ink-bar {
+    height: 3px;
+    border-radius: 3px;
+    background: #1677ff;
+}
+
+/* 页面切换动画 */
+.transition-all {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+}
+
+/* 阴影效果 */
+.shadow-hover {
+    transition: box-shadow 0.3s ease;
+}
+
+.shadow-hover:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 背景渐变 */
+.bg-gradient {
+    background: linear-gradient(135deg, #f6f8fc 0%, #ffffff 100%);
+}
+
+/* 卡片悬浮效果 */
+.card-hover {
+    transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 表单项样式 */
+.ant-form-item-label > label {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.ant-form-item-explain-error {
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+/* 分割线样式 */
+.ant-divider {
+    margin: 24px 0;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* 警告框样式 */
+.ant-alert-warning {
+    border: 1px solid #fef3c7;
+    background-color: #fffbeb;
+}
+
+.ant-alert-warning .ant-alert-message {
+    color: #d97706;
+}
+
+/* 禁用输入框样式 */
+.ant-input[disabled] {
+    color: #6b7280;
+    background-color: #f9fafb;
+    border-color: #e5e7eb;
+}
+
+/* 模态框按钮样式 */
+.ant-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.ant-modal-footer .ant-btn {
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* 取消按钮 */
+.ant-modal-footer .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous) {
+    border-color: #e5e7eb;
+    color: #374151;
+}
+
+.ant-modal-footer .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):hover {
+    border-color: #d1d5db;
+    color: #1f2937;
+    background-color: #f9fafb;
+}
+
+/* 主要按钮 */
+.ant-modal-footer .ant-btn-primary {
+    background-color: #1677ff;
+    border-color: #1677ff;
+}
+
+.ant-modal-footer .ant-btn-primary:hover {
+    background-color: #0958d9;
+    border-color: #0958d9;
+}
+
+/* 危险按钮 */
+.ant-modal-footer .ant-btn-dangerous {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: white;
+}
+
+.ant-modal-footer .ant-btn-dangerous:hover {
+    background-color: #b91c1c;
+    border-color: #b91c1c;
+}
+
+/* 禁用状态 */
+.ant-modal-footer .ant-btn[disabled] {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.ant-modal-footer .ant-btn[disabled]:hover {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+    transform: none;
+    box-shadow: none;
+}
