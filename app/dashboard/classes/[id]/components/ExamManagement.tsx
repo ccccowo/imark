@@ -87,12 +87,26 @@ export default function ExamManagement({
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                // 添加日志查看原始数据
+                console.log('Excel 原始数据:', jsonData);
 
                 // 验证并格式化数据
-                const formattedData = jsonData.map((row: any) => ({
-                    name: row['name'],  // 直接使用 Excel 中的列名
-                    studentId: String(row['studentId']),  // 直接使用 Excel 中的列名
-                })).filter(item => item.name && item.studentId); // 过滤掉无效数据
+                const formattedData = jsonData.map((row: any) => {
+                    console.log('处理行数据:', row); // 查看每行数据
+                    return {
+                        name: row['name'],
+                        studentId: String(row['studentId']),
+                    };
+                }).filter(item => {
+                    const isValid = item.name && item.studentId;
+                    if (!isValid) {
+                        console.log('无效数据:', item); // 查看被过滤掉的数据
+                    }
+                    return isValid;
+                });
+
+                console.log('格式化后的数据:', formattedData);
 
                 if (formattedData.length === 0) {
                     throw new Error('Excel 文件中没有有效数据');
@@ -103,9 +117,11 @@ export default function ExamManagement({
                     students: formattedData
                 });
 
+                console.log('API 响应:', response.data); // 查看API响应
+
                 if (response.status === 200) {
                     message.success(`成功导入 ${response.data.count} 名考生`);
-                    await fetchExams();  // 刷新状态
+                    await fetchExams();
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -365,6 +381,20 @@ export default function ExamManagement({
                         </Button>
                     )}
                     <Button
+                        type="link"
+                        icon={<UploadOutlined className="mr-1" />}
+                        disabled={!(record.paperImage !== '' && Array.isArray(record.examinees) && record.examinees.length > 0)}
+                        onClick={() => {
+                            if (!(record.paperImage !== '' && Array.isArray(record.examinees) && record.examinees.length > 0)) {
+                                message.warning('请先上传考生名单和样卷');
+                                return;
+                            }
+                            openFileSelector(record.id);
+                        }}
+                    >
+                        上传考生试卷
+                    </Button>
+                    <Button
                         type="text"
                         icon={<EditOutlined />}
                         onClick={() => onEditExam(record)}
@@ -392,6 +422,58 @@ export default function ExamManagement({
     useEffect(() => {
         fetchExams();
     }, [classId, examModalVisible]);
+
+    // 添加文件选择函数
+    const openFileSelector = (examId: string) => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.multiple = true;
+        fileInput.accept = 'image/*';
+
+        fileInput.onchange = (e: Event) => {
+            const target = e.target as HTMLInputElement;
+            if (!target.files || target.files.length === 0) {
+                return;
+            }
+            handleStudentPapersUpload(target.files, examId);
+        };
+
+        fileInput.click();
+    };
+    // 处理考生试卷上传
+    const handleStudentPapersUpload = async (files: FileList, examId: string) => {
+        try {
+            const formData = new FormData();
+            Array.from(files).forEach((file) => {
+                formData.append('papers', file);
+            });
+
+            // 显示上传进度
+            message.loading('正在上传试卷...', 0);
+
+            const response = await axiosInstance.post(
+                `/api/exams/${examId}/answer-papers`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
+
+            if (response.data.success) {
+                message.destroy(); // 清除loading消息
+                message.success('试卷上传成功');
+                await fetchExams(); // 刷新考试列表
+            }
+        } catch (error) {
+            message.destroy();
+            message.error('试卷上传失败');
+            console.error('上传错误:', error);
+        }
+    };
+
+
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm">

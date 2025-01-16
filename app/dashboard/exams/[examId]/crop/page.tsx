@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button, message, Alert, Space } from 'antd';
 import ReactCrop, { Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -18,6 +18,8 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
     const [paperUrl, setPaperUrl] = useState('');
     const [isDrawingMode, setIsDrawingMode] = useState(false);
     const [tempCrop, setTempCrop] = useState<Crop | undefined>(undefined);
+    const cropRef = useRef<any>(null);
+    const imageRef = useRef<HTMLImageElement>(null);
 
     // 获取试卷信息和历史切割数据
     useEffect(() => {
@@ -51,39 +53,59 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
         fetchExam();
     }, [params.examId]);
 
+    // 保存坐标到服务器
+    const saveCoordinates = async (coordinates: any) => {
+        await axiosInstance.post(`/api/exams/${params.examId}/questions`, {
+            questions: [{
+                orderNum: currentQuestion,
+                coordinates,
+                type: 'SHORT_ANSWER',  // 默认为简答题
+                score: 0  // 默认分值
+            }]
+        });
+    };
+
     // 保存裁剪区域
     const handleSave = async () => {
-        if (crops.length === 0) {
-            message.warning('请至少添加一道题目');
+        // 获取当前选中的裁剪区域
+        const currentCrop = crops[currentQuestion - 1];
+        if (!currentCrop) {
+            message.error('请先选择裁剪区域');
             return;
         }
+
+        // 获取图片的实际尺寸
+        const image = imageRef.current;
+        if (!image) return;
+
+        const naturalWidth = image.naturalWidth;
+        const naturalHeight = image.naturalHeight;
+        const displayWidth = image.width;
+        const displayHeight = image.height;
+
+        // 计算缩放比例
+        const scaleX = naturalWidth / displayWidth;
+        const scaleY = naturalHeight / displayHeight;
+
+        // 转换为实际图片上的坐标
+        const coordinates = {
+            x: Math.round(currentCrop.x * scaleX),
+            y: Math.round(currentCrop.y * scaleY),
+            width: Math.round(currentCrop.width * scaleX),
+            height: Math.round(currentCrop.height * scaleY)
+        };
+
+        console.log('Display coordinates:', currentCrop);
+        console.log('Image natural size:', { naturalWidth, naturalHeight });
+        console.log('Scale factors:', { scaleX, scaleY });
+        console.log('Actual coordinates:', coordinates);
+
+        // 保存坐标
         try {
-            // 按照 y 坐标排序，如果 y 坐标相近（差值小于30），则按 x 坐标排序
-            const sortedCrops = [...crops].sort((a, b) => {
-                const yDiff = Math.abs(a.y - b.y);
-                if (yDiff < 30) {
-                    return a.x - b.x;
-                }
-                return a.y - b.y;
-            });
-
-            // 重新分配题号
-            const questionsToSave = sortedCrops.map((crop, index) => ({
-                orderNum: index + 1,
-                coordinates: {
-                    x: crop.x,
-                    y: crop.y,
-                    width: crop.width,
-                    height: crop.height
-                }
-            }));
-
-            await axiosInstance.post(`/api/exams/${params.examId}/questions`, {
-                questions: questionsToSave
-            });
-            message.success('题目保存成功');
-            router.back();
+            await saveCoordinates(coordinates);
+            message.success('保存成功');
         } catch (error) {
+            console.error('保存失败:', error);
             message.error('保存失败');
         }
     };
@@ -212,6 +234,7 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
             <div className="bg-white p-4 rounded-lg shadow-lg">
                 {paperUrl ? (
                     <ReactCrop
+                        ref={cropRef}
                         crop={isDrawingMode ? tempCrop : crops[currentQuestion - 1]}
                         onChange={(newCrop) => {
                             if (isDrawingMode) {
@@ -229,7 +252,7 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
                         minWidth={20}
                         minHeight={20}
                     >
-                        <img src={paperUrl} alt="试卷" />
+                        <img ref={imageRef} src={paperUrl} alt="试卷" />
                     </ReactCrop>
                 ) : (
                     <div className="text-center py-8 text-gray-500">
