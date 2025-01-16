@@ -19,6 +19,7 @@ import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import axiosInstance from '@/lib/axios'
 import { ViewPaperModal } from './ViewPaperModal'
+import { useRouter } from 'next/navigation'
 
 // 考试管理组件的props
 interface ExamManagementProps {
@@ -46,6 +47,7 @@ export default function ExamManagement({
     onCancelModal,
     onExamNameChange
 }: ExamManagementProps) {
+    const router = useRouter();
     // 删除考试
     const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
     // 删除考试弹窗
@@ -400,6 +402,7 @@ export default function ExamManagement({
                             type="link"
                             icon={<EditOutlined />}
                             onClick={() => {
+                                router.push(`/dashboard/exams/${record.id}/grade`);
                             }}
                             className="text-green-500 hover:text-green-600"
                         >

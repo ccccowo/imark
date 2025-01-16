@@ -55,7 +55,7 @@ export async function POST(
         await prisma.$transaction(async (tx) => {
             // 创建题目
             await tx.question.createMany({
-                data: questions.map(question => ({
+                data: questions.map((question: any) => ({
                     examId: params.examId,
                     orderNum: question.orderNum,
                     coordinates: JSON.stringify(question.coordinates),

@@ -17,6 +17,7 @@ interface QuestionSettings {
   endNum: number;
   score: number;
   type: string;
+  correctAnswer?: string;
 }
 
 export default function PaperCropPage({ params }: { params: { examId: string } }) {
@@ -173,6 +174,7 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
                     },
                     score: setting!.score,
                     type: setting!.type,
+                    correctAnswer: setting!.correctAnswer,
                 };
             });
 

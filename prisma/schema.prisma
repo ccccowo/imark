@@ -71,6 +71,7 @@ model Question {
   type            String
   orderNum        Int
   score           Float
+  correctAnswer   String?
   answerQuestions AnswerQuestion[]
   exam            Exam             @relation(fields: [examId], references: [id])
 }
@@ -101,6 +102,9 @@ model AnswerQuestion {
   aiScore        Float?
   teacherComment String?
   aiComment      String?
+  aiStatus       String?
+  aiConfidence   Float?
+  aiAnswer       String?
 
   isGraded       Boolean? @default(false)
 
