@@ -379,3 +379,291 @@
     transform: none;
     box-shadow: none;
 }
+
+/* 自定义标签页样式 */
+.custom-tabs .ant-tabs-nav::before {
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.custom-tabs .ant-tabs-tab {
+  transition: all 0.3s;
+  font-weight: 500;
+}
+
+.custom-tabs .ant-tabs-tab:hover {
+  color: #4f46e5;
+}
+
+.custom-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #4f46e5;
+}
+
+.custom-tabs .ant-tabs-ink-bar {
+  background: #4f46e5;
+}
+
+/* 输入框样式 */
+.ant-input-affix-wrapper:hover,
+.ant-input-affix-wrapper-focused {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1) !important;
+}
+
+/* 按钮悬浮效果 */
+.ant-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+}
+
+/* 标签页内容切换动画 */
+.custom-tabs .ant-tabs-content {
+  transition: all 0.3s ease-in-out;
+  min-height: 200px;
+}
+
+.custom-tabs .ant-tabs-tabpane {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease-in-out;
+  position: absolute;
+  width: 100%;
+  visibility: hidden;
+}
+
+.custom-tabs .ant-tabs-tabpane-active {
+  opacity: 1;
+  transform: translateY(0);
+  position: relative;
+  visibility: visible;
+}
+
+/* 标签页容器 */
+.custom-tabs .ant-tabs-content-holder {
+  position: relative;
+  overflow: hidden;
+  transition: height 0.3s ease-in-out;
+}
+
+/* 表单间距统一 */
+.custom-tabs form,
+.custom-tabs .ant-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 输入框容器统一高度 */
+.custom-tabs .ant-form-item,
+.custom-tabs .ant-input-wrapper,
+.custom-tabs .ant-input-password {
+  margin-bottom: 0;
+  height: 40px;
+}
+
+/* 标签页切换动画 */
+.custom-tabs .ant-tabs-ink-bar {
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.custom-tabs .ant-tabs-tab {
+  position: relative;
+  transition: color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* 标签页hover效果 */
+.custom-tabs .ant-tabs-tab:before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: #4f46e5;
+  transition: all 0.3s ease-in-out;
+  transform: translateX(-50%);
+}
+
+.custom-tabs .ant-tabs-tab:hover:before {
+  width: 100%;
+}
+
+/* 标签页容器样式 */
+.custom-tabs .ant-tabs-content {
+  position: relative;
+  height: 250px;  /* 固定高度 */
+  overflow: hidden;
+}
+
+/* 标签页面板样式 */
+.custom-tabs .ant-tabs-tabpane {
+  position: absolute;
+  width: 100%;
+  opacity: 0;
+  transform: translateX(50px);
+  transition: all 0.4s cubic-bezier(0.645, 0.045, 0.355, 1);
+  visibility: hidden;
+  padding: 16px 0;
+}
+
+/* 活动面板样式 */
+.custom-tabs .ant-tabs-tabpane-active {
+  opacity: 1;
+  transform: translateX(0);
+  visibility: visible;
+  z-index: 2;
+}
+
+/* 标签导航样式 */
+.custom-tabs .ant-tabs-nav {
+  margin-bottom: 16px !important;
+}
+
+.custom-tabs .ant-tabs-tab {
+  padding: 8px 0;
+  margin: 0 32px 0 0;
+  font-size: 16px;
+  transition: all 0.3s;
+}
+
+.custom-tabs .ant-tabs-tab-active {
+  font-weight: 600;
+}
+
+/* 表单布局 */
+.custom-tabs form,
+.custom-tabs .ant-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 输入框样式 */
+.custom-tabs .ant-input-affix-wrapper,
+.custom-tabs .ant-input-password {
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s;
+}
+
+/* 按钮样式 */
+.custom-tabs .ant-btn {
+  height: 42px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s;
+  background: linear-gradient(to right, #4f46e5, #6366f1);
+  border: none;
+  color: white;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+}
+
+.custom-tabs .ant-btn:hover {
+  background: linear-gradient(to right, #4338ca, #4f46e5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.custom-tabs .ant-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+}
+
+/* 加载状态 */
+.custom-tabs .ant-btn.ant-btn-loading {
+  background: linear-gradient(to right, #6366f1, #818cf8);
+  opacity: 0.8;
+}
+
+/* 按钮图标样式 */
+.custom-tabs .ant-btn .anticon {
+  font-size: 18px;
+  margin-right: 8px;
+  vertical-align: -1px;
+}
+
+/* 移除重复的样式 */
+.custom-tabs .ant-tabs-ink-bar {
+  display: none;  /* 移除下划线 */
+}
+
+/* 标签hover效果 */
+.custom-tabs .ant-tabs-tab {
+  position: relative;
+  color: #6b7280;
+}
+
+.custom-tabs .ant-tabs-tab:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #4f46e5;
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.custom-tabs .ant-tabs-tab:hover {
+  color: #4f46e5;
+}
+
+.custom-tabs .ant-tabs-tab-active {
+  color: #4f46e5;
+}
+
+.custom-tabs .ant-tabs-tab-active:after {
+  transform: scaleX(1);
+}
+
+/* 背景动画 */
+.bg-gradient-animated {
+  background: linear-gradient(
+    315deg,
+    rgba(79, 70, 229, 0.1) 0%,
+    rgba(99, 102, 241, 0.1) 25%,
+    rgba(129, 140, 248, 0.1) 50%,
+    rgba(99, 102, 241, 0.1) 75%,
+    rgba(79, 70, 229, 0.1) 100%
+  );
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* 背景图案 */
+.bg-gradient-animated::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 25px 25px, rgba(79, 70, 229, 0.15) 2%, transparent 0%),
+    radial-gradient(circle at 75px 75px, rgba(99, 102, 241, 0.15) 2%, transparent 0%);
+  background-size: 100px 100px;
+  opacity: 0.5;
+}
+
+/* 毛玻璃卡片效果 */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}

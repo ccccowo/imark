@@ -75,5 +75,48 @@ export async function GET(
   }
 }
 
+export async function DELETE(
+    request: Request,
+    { params }: { params: { id: string } }
+) {
+    try {
+        // 权限验证
+        const session = await getServerSession(authOptions);
+        if (!session?.user || session.user.role !== 'TEACHER') {
+            return NextResponse.json({ error: "未授权" }, { status: 401 });
+        }
+
+        // 使用事务确保数据一致性
+        await prisma.$transaction(async (tx) => {
+            // 1. 删除相关的考试记录
+            await tx.exam.deleteMany({
+                where: { classId: params.id }
+            });
+
+            // 2. 删除学生-班级关联
+            await tx.studentClass.deleteMany({
+                where: { classId: params.id }
+            });
+
+            // 3. 删除班级
+            await tx.class.delete({
+                where: { id: params.id }
+            });
+        });
+
+        return NextResponse.json({ 
+            success: true,
+            message: "班级删除成功"
+        });
+
+    } catch (error) {
+        console.error('删除班级失败:', error);
+        return NextResponse.json({ 
+            error: "删除班级失败",
+            details: error instanceof Error ? error.message : '未知错误'
+        }, { status: 500 });
+    }
+}
+
 
 

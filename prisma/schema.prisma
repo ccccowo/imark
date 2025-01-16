@@ -3,176 +3,127 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  // 学号
-  studentId String? @unique
-  // 教师工号
-  teacherId String? @unique
-
-  username  String   @unique
-  password  String
-  email     String?  @unique
-
-  // 角色
-  role      String   // "TEACHER" 或 "STUDENT"
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // 教师关系
-  teacherClasses Class[] @relation("TeacherClasses")
-  // 学生关系
-  studentClasses StudentClass[]
-  // 考试结果
-  examResults    ExamResult[]
+  id              String           @id @default(cuid())
+  name            String
+  studentId       String?          @unique
+  teacherId       String?          @unique
+  username        String           @unique
+  password        String
+  email           String?          @unique
+  role            String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  answerQuestions AnswerQuestion[] @relation("UserToAnswerQuestion")
+  teacherClasses  Class[]          @relation("TeacherClasses")
+  examResults     ExamResult[]
+  studentClasses  StudentClass[]
 }
 
-// 班级
 model Class {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   name      String
   teacherId String
-  teacher   User     @relation("TeacherClasses", fields: [teacherId], references: [id])
-  students  StudentClass[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  teacher   User           @relation("TeacherClasses", fields: [teacherId], references: [id])
   exams     Exam[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  students  StudentClass[]
 
   @@unique([name, teacherId])
 }
 
-// 学生班级关系
 model StudentClass {
   id        String   @id @default(cuid())
-  student   User     @relation(fields: [studentId], references: [id])
   studentId String
-  class     Class    @relation(fields: [classId], references: [id])
   classId   String
   joinTime  DateTime @default(now())
+  class     Class    @relation(fields: [classId], references: [id])
+  student   User     @relation(fields: [studentId], references: [id])
 
   @@unique([studentId, classId])
 }
 
-// 考试
 model Exam {
-  id          String   @id @default(cuid())
-  name        String
-  classId     String
-  class       Class    @relation(fields: [classId], references: [id])
-  status      ExamStatus @default(NOT_READY)
-  
-  paperImage  String? // 样卷图片路径
-  fullScore  Float? // 考试满分
-  examinees   Examinee[] // 考生名单
-  questions   Question[] // 样卷题目
-  results     ExamResult[] // 考试结果
+  id              String           @id @default(cuid())
+  name            String
+  classId         String
+  status          String           @default("NOT_READY")
+  paperImage      String?
+  fullScore       Float?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   answerQuestions AnswerQuestion[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  class           Class            @relation(fields: [classId], references: [id])
+  results         ExamResult[]
+  examinees       Examinee[]
+  questions       Question[]
 }
 
-// 考生
-model Examinee {
-  id          String   @id @default(cuid())
-  name        String
-  studentId   String
-  examId      String
-  exam        Exam     @relation(fields: [examId], references: [id])
+model Question {
+  id              String           @id @default(cuid())
+  examId          String
+  coordinates     String
+  type            String
+  orderNum        Int
+  score           Float
+  answerQuestions AnswerQuestion[]
+  exam            Exam             @relation(fields: [examId], references: [id])
+}
 
-  // 考生答题
-  answerQuestions   AnswerQuestion[]
-  // 考生总得分
-  totalScore  Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Examinee {
+  id              String           @id @default(cuid())
+  name            String
+  studentId       String
+  examId          String
+  totalScore      Float?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  answerQuestions AnswerQuestion[] @relation("ExamineeToAnswerQuestion")
+  exam            Exam             @relation(fields: [examId], references: [id])
 
   @@unique([examId, studentId])
 }
 
-// 学生答题
 model AnswerQuestion {
-    id          String   @id @default(cuid())
-    examId      String
-    exam        Exam     @relation(fields: [examId], references: [id])
-    examineeId  String   // 考生ID
-    examinee    Examinee @relation(fields: [examineeId], references: [id])
+  id             String   @id @default(cuid())
+  examId         String
+  questionId     String
+  examineeId     String
+  answerQuestionImage String
+  
+  fullScore      Float?
+  teacherScore   Float?
+  aiScore        Float?
+  teacherComment String?
+  aiComment      String?
 
-    questionId  String   // 题目id
-    question    Question @relation(fields: [questionId], references: [id])
+  isGraded       Boolean? @default(false)
 
-    answerQuestionImage String // 每道题的图片路径
-    fullScore   Float? // 满分
-    teacherScore Float? // 老师打分
-    aiScore     Float? // AI打分
-    teacherComment String?  // 老师批注
-    aiComment String?   // AI批注
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  userId         String
+  user           User     @relation("UserToAnswerQuestion", fields: [userId], references: [id])
+  examinee       Examinee @relation("ExamineeToAnswerQuestion", fields: [examineeId], references: [id])
+  question       Question @relation(fields: [questionId], references: [id])
+  exam           Exam     @relation(fields: [examId], references: [id])
 
-    // 是否已阅卷
-    isGraded    Boolean? @default(false)
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
-
-    @@unique([examineeId, questionId])
+  @@unique([examineeId, questionId])
 }
 
-// 考试结果
 model ExamResult {
   id        String   @id @default(cuid())
   examId    String
   studentId String
   score     Float?
-  exam      Exam     @relation(fields: [examId], references: [id])
-  student   User     @relation(fields: [studentId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  student   User     @relation(fields: [studentId], references: [id])
+  exam      Exam     @relation(fields: [examId], references: [id])
 
   @@unique([examId, studentId])
-}
-
-// 角色
-enum Role {
-  STUDENT
-  TEACHER
-}
-
-// 考试状态
-enum ExamStatus {
-  NOT_READY
-  READY
-  GRADING
-  COMPLETED
-}
-
-// 题目类型
-enum QuestionType {
-    // 单选题
-    SINGLE_CHOICE
-    // 多选题
-    MULTIPLE_CHOICE
-    // 填空题
-    FILL_IN_THE_BLANK
-    // 判断题
-    TRUE_OR_FALSE
-    // 简答题
-    SHORT_ANSWER
-}
-
-model Question {
-    id          String   @id @default(cuid())
-    examId      String
-    exam        Exam     @relation(fields: [examId], references: [id])
-    coordinates Json     // 存储题目坐标 {x1,y1,x2,y2}
-    // 题目类型
-    type        QuestionType
-    orderNum    Int      // 题号
-    score       Float    // 分值
-    answerQuestions AnswerQuestion[]
 }

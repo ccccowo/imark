@@ -32,24 +32,24 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
                 // 获取历史切割数据
                 const questionsResponse = await axiosInstance.get(`/api/exams/${params.examId}/questions`);
                 if (questionsResponse.data.length > 0) {
-                    // 转换数据格式
+                    // 转换数据格式，直接使用返回的数据
                     const historyCrops = questionsResponse.data.map((q: any) => ({
-                        x: q.coordinates.x,
-                        y: q.coordinates.y,
-                        width: q.coordinates.width,
-                        height: q.coordinates.height,
+                        ...q.coordinates, // coordinates 已经是对象了，不需要再解析
                         unit: 'px',
                         orderNum: q.orderNum
                     }));
+                    
+                    console.log('Loading history crops:', historyCrops); // 添加日志
                     setCrops(historyCrops);
-                    setCurrentQuestion(1); // 显示第一题
-                    message.success('已加载历史切割数据');
+                    setCurrentQuestion(historyCrops.length); // 设置为最后一题
+                    message.success(`已加载 ${historyCrops.length} 道历史题目`);
                 }
             } catch (error) {
+                console.error('加载失败:', error);
                 message.error('获取试卷信息失败');
-                router.back();
             }
         };
+
         fetchExam();
     }, [params.examId]);
 
@@ -67,43 +67,35 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
 
     // 保存裁剪区域
     const handleSave = async () => {
-        // 获取当前选中的裁剪区域
-        const currentCrop = crops[currentQuestion - 1];
-        if (!currentCrop) {
-            message.error('请先选择裁剪区域');
-            return;
-        }
-
-        // 获取图片的实际尺寸
-        const image = imageRef.current;
-        if (!image) return;
-
-        const naturalWidth = image.naturalWidth;
-        const naturalHeight = image.naturalHeight;
-        const displayWidth = image.width;
-        const displayHeight = image.height;
-
-        // 计算缩放比例
-        const scaleX = naturalWidth / displayWidth;
-        const scaleY = naturalHeight / displayHeight;
-
-        // 转换为实际图片上的坐标
-        const coordinates = {
-            x: Math.round(currentCrop.x * scaleX),
-            y: Math.round(currentCrop.y * scaleY),
-            width: Math.round(currentCrop.width * scaleX),
-            height: Math.round(currentCrop.height * scaleY)
-        };
-
-        console.log('Display coordinates:', currentCrop);
-        console.log('Image natural size:', { naturalWidth, naturalHeight });
-        console.log('Scale factors:', { scaleX, scaleY });
-        console.log('Actual coordinates:', coordinates);
-
-        // 保存坐标
         try {
-            await saveCoordinates(coordinates);
-            message.success('保存成功');
+            // 确保所有题目都已经切割完成
+            if (crops.length === 0) {
+                message.error('请先添加题目');
+                return;
+            }
+
+            // 按题号排序
+            const sortedCrops = [...crops].sort((a, b) => a.orderNum - b.orderNum);
+
+            // 打印日志以检查数据
+            console.log('Saving crops:', sortedCrops);
+
+            // 保存所有题目的数据
+            await axiosInstance.post(`/api/exams/${params.examId}/questions`, {
+                questions: sortedCrops.map((crop, index) => ({
+                    orderNum: index + 1,
+                    coordinates: {
+                        x: crop.x,
+                        y: crop.y,
+                        width: crop.width,
+                        height: crop.height
+                    },
+                    type: 'SHORT_ANSWER',
+                    score: 0
+                }))
+            });
+
+            message.success('所有题目保存成功');
         } catch (error) {
             console.error('保存失败:', error);
             message.error('保存失败');
@@ -118,22 +110,28 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
     const handleCropComplete = (crop: Crop) => {
         if (!isDrawingMode) return;
         
-        // 添加最小尺寸验证（比如 20x20 像素）
+        // 添加最小尺寸验证
         if (crop.width < 20 || crop.height < 20) {
-            return; // 如果选区太小，直接返回不处理
+            return;
         }
         
         // 添加新题目
         const nextQuestionNum = crops.length + 1;
-        setCrops([
+        const newCrops = [
             ...crops,
             { 
                 ...crop,
                 orderNum: nextQuestionNum
             }
-        ]);
+        ];
+        
+        // 打印日志以检查数据
+        console.log('Adding new crop:', crop);
+        console.log('Updated crops:', newCrops);
+        
+        setCrops(newCrops);
         setCurrentQuestion(nextQuestionNum);
-        setIsDrawingMode(false); // 退出绘制模式
+        setIsDrawingMode(false);
         message.success(`第 ${nextQuestionNum} 题区域已添加`);
     };
 

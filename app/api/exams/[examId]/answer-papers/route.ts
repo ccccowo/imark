@@ -5,13 +5,23 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import path from 'path';
 import fs from 'fs/promises';
 import sharp from 'sharp';
+import { deleteDirectory } from '@/lib/fileUtils';
 
-// 添加坐标验证函数
-function validateCoordinates(coordinates: { x: number; y: number; width: number; height: number }) {
-    return coordinates.x >= 0 && 
-           coordinates.y >= 0 && 
-           coordinates.width > 0 && 
-           coordinates.height > 0;
+// 辅助函数：验证坐标值
+function validateCoordinates(coordinates: any): boolean {
+    try {
+        // 确保所有必要的属性都存在且为数字
+        const { x, y, width, height } = coordinates;
+        return (
+            typeof x === 'number' && !isNaN(x) &&
+            typeof y === 'number' && !isNaN(y) &&
+            typeof width === 'number' && !isNaN(width) && width > 0 &&
+            typeof height === 'number' && !isNaN(height) && height > 0
+        );
+    } catch (error) {
+        console.error('坐标验证失败:', error);
+        return false;
+    }
 }
 
 export async function POST(
@@ -88,99 +98,85 @@ export async function POST(
                 const buffer = Buffer.from(await file.arrayBuffer());
 
                 for (const question of exam.questions) {
-                    const coordinates = question.coordinates as {
-                        x: number;
-                        y: number;
-                        width: number;
-                        height: number;
-                    };
+                    try {
+                        const coordinates = JSON.parse(String(question.coordinates));
+                        console.log('Processing coordinates:', coordinates);
 
-                    // 在处理图片前添加日志
-                    console.log('Original coordinates:', coordinates);
-
-                    // 添加坐标验证
-                    if (!validateCoordinates(coordinates)) {
-                        console.error('Invalid coordinates:', coordinates);
-                        throw new Error(`题目坐标无效: ${JSON.stringify(coordinates)}`);
-                    }
-
-                    // 记录实际使用的坐标
-                    const extractOptions = {
-                        left: Math.round(coordinates.x),
-                        top: Math.round(coordinates.y),
-                        width: Math.round(coordinates.width),
-                        height: Math.round(coordinates.height)
-                    };
-                    console.log('Extraction coordinates:', extractOptions);
-
-                    const fileName = `${examinee.studentId}_q${question.orderNum}.jpg`;
-                    const filePath = path.join(uploadDir, fileName);
-
-                    // 在处理图片前获取原图信息
-                    const imageInfo = await sharp(buffer).metadata();
-                    console.log('Original image info:', imageInfo);
-
-                    // 获取样卷的原始尺寸
-                    const paperImageInfo = await sharp(path.join(process.cwd(), 'public', exam.paperImage)).metadata();
-                    console.log('Paper image info:', paperImageInfo);
-
-                    // 如果考生试卷和样卷尺寸不同，需要调整坐标
-                    if (imageInfo.width && imageInfo.height && paperImageInfo.width && paperImageInfo.height) {
-                        const scaleX = imageInfo.width / paperImageInfo.width;
-                        const scaleY = imageInfo.height / paperImageInfo.height;
-
-                        // 调整切割坐标以适应考生试卷的实际尺寸
-                        const adjustedCoordinates = {
-                            left: Math.round(coordinates.x * scaleX),
-                            top: Math.round(coordinates.y * scaleY),
-                            width: Math.round(coordinates.width * scaleX),
-                            height: Math.round(coordinates.height * scaleY)
-                        };
-
-                        console.log('Scale factors:', { scaleX, scaleY });
-                        console.log('Original coordinates:', coordinates);
-                        console.log('Adjusted coordinates:', adjustedCoordinates);
-
-                        try {
-                            await sharp(buffer)
-                                .extract(adjustedCoordinates)
-                                .toFile(filePath);
-                            
-                            console.log('Crop successful:', {
-                                input: adjustedCoordinates,
-                                output: filePath
-                            });
-                        } catch (error) {
-                            console.error('Crop failed:', error);
-                            throw new Error(`处理题目${question.orderNum}的图片时出错: ${error.message}`);
+                        if (!validateCoordinates(coordinates)) {
+                            console.error('Invalid coordinates format:', coordinates);
+                            throw new Error('题目坐标格式无效');
                         }
-                    }
 
-                    const answerQuestionImage = `/uploads/answers/${params.examId}-${fileName}`;
+                        // 记录实际使用的坐标
+                        const extractOptions = {
+                            left: Math.round(coordinates.x),
+                            top: Math.round(coordinates.y),
+                            width: Math.round(coordinates.width),
+                            height: Math.round(coordinates.height)
+                        };
+                        console.log('Extraction coordinates:', extractOptions);
 
-                    // 创建答题记录 
-                    await tx.answerQuestion.create({
-                        data: {
-                            answerQuestionImage: answerQuestionImage,
-                            fullScore: 0,
-                            isGraded: false,
-                            exam: {
-                                connect: {
-                                    id: params.examId
-                                }
-                            },
-                            examinee: {
-                                connect: {
-                                    id: examinee.id
-                                }
-                            },
-                            question: {
-                                connect: {
-                                    id: question.id
-                                }
+                        const fileName = `${examinee.studentId}_q${question.orderNum}.jpg`;
+                        const filePath = path.join(uploadDir, fileName);
+
+                        // 在处理图片前获取原图信息
+                        const imageInfo = await sharp(buffer).metadata();
+                        console.log('Original image info:', imageInfo);
+
+                        // 获取样卷的原始尺寸
+                        const paperImageInfo = await sharp(path.join(process.cwd(), 'public', exam.paperImage!)).metadata();
+                        console.log('Paper image info:', paperImageInfo);
+
+                        // 如果考生试卷和样卷尺寸不同，需要调整坐标
+                        if (imageInfo.width && imageInfo.height && paperImageInfo.width && paperImageInfo.height) {
+                            const scaleX = imageInfo.width / paperImageInfo.width;
+                            const scaleY = imageInfo.height / paperImageInfo.height;
+
+                            // 调整切割坐标以适应考生试卷的实际尺寸
+                            const adjustedCoordinates = {
+                                left: Math.round(coordinates.x * scaleX),
+                                top: Math.round(coordinates.y * scaleY),
+                                width: Math.round(coordinates.width * scaleX),
+                                height: Math.round(coordinates.height * scaleY)
+                            };
+
+                            console.log('Scale factors:', { scaleX, scaleY });
+                            console.log('Original coordinates:', coordinates);
+                            console.log('Adjusted coordinates:', adjustedCoordinates);
+
+                            try {
+                                await sharp(buffer)
+                                    .extract(adjustedCoordinates)
+                                    .toFile(filePath);
+                                
+                                console.log('Crop successful:', {
+                                    input: adjustedCoordinates,
+                                    output: filePath
+                                });
+                            } catch (error) {
+                                console.error('Crop failed:', error);
+                                throw new Error(`处理题目${question.orderNum}的图片时出错: ${error.message}`);
                             }
                         }
-                    });
+
+                        const answerQuestionImage = `/uploads/answers/${params.examId}-${fileName}`;
+
+                        // 创建答题记录 
+                        await tx.answerQuestion.create({
+                            data: {
+                                userId: session.user.id,
+                                examId: params.examId,
+                                questionId: question.id,
+                                examineeId: examinee.id,
+                                answerQuestionImage: answerQuestionImage,
+                                fullScore: 0,
+                                isGraded: false
+                            }
+                        });
+                    } catch (error) {
+                        console.error('处理题目失败:', error);
+                        throw error;
+                    }
                 }
             }
 
@@ -211,6 +207,38 @@ export async function POST(
 
         return NextResponse.json({ 
             error: "处理失败",
+            details: error instanceof Error ? error.message : '未知错误'
+        }, { status: 500 });
+    }
+}
+
+export async function DELETE(
+    request: Request,
+    { params }: { params: { examId: string } }
+) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user || session.user.role !== 'TEACHER') {
+            return NextResponse.json({ error: "未授权" }, { status: 401 });
+        }
+
+        // 删除答题图片目录
+        const answersPath = path.join('uploads/answers', params.examId);
+        await deleteDirectory(answersPath);
+
+        // 清除答题记录
+        await prisma.answerQuestion.deleteMany({
+            where: { examId: params.examId }
+        });
+
+        return NextResponse.json({ 
+            success: true,
+            message: "答卷已清除"
+        });
+    } catch (error) {
+        console.error('清除答卷失败:', error);
+        return NextResponse.json({ 
+            error: "清除答卷失败",
             details: error instanceof Error ? error.message : '未知错误'
         }, { status: 500 });
     }

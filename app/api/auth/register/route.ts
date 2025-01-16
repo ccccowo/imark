@@ -4,65 +4,65 @@ import { hash } from "bcryptjs";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { username, password, role } = body;
+    const { username, password, role} = await request.json();
 
-    // 验证必填字段
-    if (!username || !password || !role) {
-      return NextResponse.json(
-        { error: "用户名、密码和角色是必填的" },
-        { status: 400 }
-      );
+    // 详细的字段验证
+    if (!username?.trim()) {
+      return NextResponse.json({ 
+        error: "用户名不能为空",
+        code: "USERNAME_REQUIRED"
+      }, { status: 400 });
     }
 
-    // 验证角色是否有效
-    if (role !== "TEACHER" && role !== "STUDENT") {
-      return NextResponse.json(
-        { error: "无效的用户角色" },
-        { status: 400 }
-      );
-    }
-
-    // 检查用户是否存在（同一角色下用户名不能重复）
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        AND: [
-          { username },
-          { role }
-        ]
-      }
+    // 检查用户名是否已存在
+    const existingUser = await prisma.user.findUnique({
+      where: { username }
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: `该用户名已被其他${role === "TEACHER" ? "教师" : "学生"}使用` },
-        { status: 400 }
-      );
+      return NextResponse.json({ 
+        error: "该用户名已被注册",
+        code: "USERNAME_EXISTS"
+      }, { status: 400 });
     }
 
+    if (!password || password.length < 6) {
+      return NextResponse.json({ 
+        error: "密码至少需要6个字符",
+        code: "INVALID_PASSWORD"
+      }, { status: 400 });
+    }
+
+    if (!role || !['TEACHER', 'STUDENT'].includes(role)) {
+      return NextResponse.json({ 
+        error: "请选择有效的角色",
+        code: "INVALID_ROLE"
+      }, { status: 400 });
+    }
+
+    // 创建用户
     const hashedPassword = await hash(password, 10);
     const user = await prisma.user.create({
       data: {
+        name: username,
         username,
         password: hashedPassword,
         role,
-        name: username, // 添加必需的name字段
-        email: `${username}@example.com` // 添加必需的email字段
       }
     });
 
     const { password: _, ...userWithoutPassword } = user;
-
     return NextResponse.json({
+      success: true,
       user: userWithoutPassword,
-      message: `${role === "TEACHER" ? "教师" : "学生"}注册成功`
+      message: "注册成功"
     });
 
-  } catch (error: any) {
-    console.error("注册错误:", error);
-    return NextResponse.json(
-      { error: "注册失败: " + error.message },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('注册错误:', error);
+    return NextResponse.json({ 
+      error: "注册失败，请稍后重试",
+      code: "INTERNAL_ERROR"
+    }, { status: 500 });
   }
 }

@@ -87,7 +87,7 @@ export default function ExamManagement({
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
+
                 // 添加日志查看原始数据
                 console.log('Excel 原始数据:', jsonData);
 
@@ -392,8 +392,20 @@ export default function ExamManagement({
                             openFileSelector(record.id);
                         }}
                     >
-                        上传考生试卷
+                        上传考生答卷
                     </Button>
+                    {/* 添加批改按钮 */}
+                    {record.status === 'GRADING' && (
+                        <Button
+                            type="link"
+                            icon={<EditOutlined />}
+                            onClick={() => {
+                            }}
+                            className="text-green-500 hover:text-green-600"
+                        >
+                            批改试卷
+                        </Button>
+                    )}
                     <Button
                         type="text"
                         icon={<EditOutlined />}
