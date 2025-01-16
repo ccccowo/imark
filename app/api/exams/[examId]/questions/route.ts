@@ -39,50 +39,46 @@ export async function POST(
     { params }: { params: { examId: string } }
 ) {
     try {
-        const data = await request.json();
-        console.log('Received questions data:', data); // 添加日志
+        const session = await getServerSession(authOptions);
+        if (!session?.user || session.user.role !== 'TEACHER') {
+            return NextResponse.json({ error: "未授权" }, { status: 401 });
+        }
+
+        const { questions, fullScore } = await request.json();
 
         // 首先删除该考试的所有现有题目
         await prisma.question.deleteMany({
-            where: {
-                examId: params.examId
-            }
+            where: { examId: params.examId }
         });
-
-        // 然后创建新的题目
-        const questions = data.questions.map((q: any) => ({
-            examId: params.examId,
-            orderNum: q.orderNum,
-            coordinates: JSON.stringify(q.coordinates),
-            type: q.type || 'SHORT_ANSWER',
-            score: q.score || 0
-        }));
-
-        console.log('Processed questions:', questions); // 添加日志
 
         // 使用事务确保数据一致性
         await prisma.$transaction(async (tx) => {
+            // 创建题目
             await tx.question.createMany({
-                data: questions
+                data: questions.map(question => ({
+                    examId: params.examId,
+                    orderNum: question.orderNum,
+                    coordinates: JSON.stringify(question.coordinates),
+                    score: question.score,
+                    type: question.type || 'SHORT_ANSWER'
+                }))
+            });
+
+            // 更新考试总分
+            await tx.exam.update({
+                where: { id: params.examId },
+                data: { fullScore }
             });
         });
 
-        // 获取保存后的题目进行验证
-        const savedQuestions = await prisma.question.findMany({
-            where: { examId: params.examId },
-            orderBy: { orderNum: 'asc' }
-        });
-        console.log('Saved questions:', savedQuestions); // 添加日志
-
         return NextResponse.json({ 
             success: true,
-            count: questions.length,
-            savedCount: savedQuestions.length
+            message: "题目和分数设置成功" 
         });
     } catch (error) {
         console.error('保存题目失败:', error);
         return NextResponse.json({ 
-            error: "保存失败",
+            error: "保存题目失败",
             details: error instanceof Error ? error.message : '未知错误'
         }, { status: 500 });
     }

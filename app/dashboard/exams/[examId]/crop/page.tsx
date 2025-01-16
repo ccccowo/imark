@@ -6,9 +6,17 @@ import ReactCrop, { Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import axiosInstance from '@/lib/axios';
 import { useRouter } from 'next/navigation';
+import BatchSettingsModal from './components/BatchSettingsModal';
 
 interface QuestionCrop extends Crop {
     orderNum: number;
+}
+
+interface QuestionSettings {
+  startNum: number;
+  endNum: number;
+  score: number;
+  type: string;
 }
 
 export default function PaperCropPage({ params }: { params: { examId: string } }) {
@@ -20,6 +28,8 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
     const [tempCrop, setTempCrop] = useState<Crop | undefined>(undefined);
     const cropRef = useRef<any>(null);
     const imageRef = useRef<HTMLImageElement>(null);
+    const [showBatchSettings, setShowBatchSettings] = useState(false);
+    const [classId, setClassId] = useState<string>('');
 
     // 获取试卷信息和历史切割数据
     useEffect(() => {
@@ -28,6 +38,7 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
                 // 获取试卷信息
                 const examResponse = await axiosInstance.get(`/api/exams/${params.examId}`);
                 setPaperUrl(examResponse.data.paperImage);
+                setClassId(examResponse.data.classId);
 
                 // 获取历史切割数据
                 const questionsResponse = await axiosInstance.get(`/api/exams/${params.examId}/questions`);
@@ -135,6 +146,69 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
         message.success(`第 ${nextQuestionNum} 题区域已添加`);
     };
 
+    const handleComplete = () => {
+        if (crops.length === 0) {
+            message.error('请至少添加一个题目区域');
+            return;
+        }
+        setShowBatchSettings(true);
+    };
+
+    const handleBatchSettingsConfirm = async (settings: QuestionSettings[]) => {
+        try {
+            // 处理设置并计算总分
+            const questions = crops.map((crop, index) => {
+                const orderNum = index + 1;
+                const setting = settings.find(
+                    s => orderNum >= s.startNum && orderNum <= s.endNum
+                );
+                
+                return {
+                    orderNum,
+                    coordinates: {
+                        x: crop.x,
+                        y: crop.y,
+                        width: crop.width,
+                        height: crop.height
+                    },
+                    score: setting!.score,
+                    type: setting!.type,
+                };
+            });
+
+            const fullScore = questions.reduce((sum, q) => sum + q.score, 0);
+
+            // 提交到后端
+            const response = await axiosInstance.post(`/api/exams/${params.examId}/questions`, {
+                questions,
+                fullScore,
+            });
+
+            if (response.data.success) {
+                message.success('题目设置成功');
+                if (classId) {
+                    router.push(`/dashboard/classes/${classId}`);
+                } else {
+                    message.error('获取班级信息失败');
+                }
+            }
+        } catch (error) {
+            console.error('保存题目失败:', error);
+            message.error('保存题目失败');
+        }
+    };
+
+    const getQuestionTypeName = (type: string) => {
+        const typeMap: Record<string, string> = {
+            'SINGLE_CHOICE': '单选题',
+            'MULTIPLE_CHOICE': '多选题',
+            'FILL_BLANK': '填空题',
+            'TRUE_FALSE': '判断题',
+            'SHORT_ANSWER': '简答题'
+        };
+        return typeMap[type] || type;
+    };
+
     return (
         <div className="p-6 max-w-7xl mx-auto">
             {/* 操作指南 */}
@@ -188,7 +262,7 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
                         添加题目
                     </Button>
                     <Button 
-                        onClick={handleSave}
+                        onClick={handleComplete}
                         disabled={crops.length === 0}
                         type="primary"
                         icon={<span>💾</span>}
@@ -259,6 +333,13 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
                     </div>
                 )}
             </div>
+
+            <BatchSettingsModal
+                visible={showBatchSettings}
+                onCancel={() => setShowBatchSettings(false)}
+                onConfirm={handleBatchSettingsConfirm}
+                questionCount={crops.length}
+            />
         </div>
     );
 } 
