@@ -66,18 +66,17 @@ model Exam {
   classId     String
   class       Class    @relation(fields: [classId], references: [id])
   status      ExamStatus @default(NOT_READY)
-  // 样卷
-  paperImage  String?
-  // 总分
-  totalScore  Float?
+  
+  paperImage  String? // 样卷图片路径
+  fullScore  Float? // 考试满分
+  examinees   Examinee[] // 考生名单
+  questions   Question[] // 样卷题目
+  results     ExamResult[] // 考试结果
+  answerQuestions AnswerQuestion[]
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  // 考试结果
-  results     ExamResult[]
-  // 考生
-  examinees   Examinee[]
-  // 题目
-  questions   Question[]
+
 }
 
 // 考生
@@ -87,10 +86,41 @@ model Examinee {
   studentId   String
   examId      String
   exam        Exam     @relation(fields: [examId], references: [id])
+
+  // 考生答题
+  answerQuestions   AnswerQuestion[]
+  // 考生总得分
+  totalScore  Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([examId, studentId])
+}
+
+// 学生答题
+model AnswerQuestion {
+    id          String   @id @default(cuid())
+    examId      String
+    exam        Exam     @relation(fields: [examId], references: [id])
+    examineeId  String   // 考生ID
+    examinee    Examinee @relation(fields: [examineeId], references: [id])
+
+    questionId  String   // 题目id
+    question    Question @relation(fields: [questionId], references: [id])
+
+    answerQuestionImage String // 每道题的图片路径
+    fullScore   Float? // 满分
+    teacherScore Float? // 老师打分
+    aiScore     Float? // AI打分
+    teacherComment String?  // 老师批注
+    aiComment String?   // AI批注
+
+    // 是否已阅卷
+    isGraded    Boolean? @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@unique([examineeId, questionId])
 }
 
 // 考试结果
@@ -144,4 +174,5 @@ model Question {
     type        QuestionType
     orderNum    Int      // 题号
     score       Float    // 分值
+    answerQuestions AnswerQuestion[]
 }

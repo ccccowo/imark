@@ -40,32 +40,38 @@ export async function POST(
     { params }: { params: { examId: string } }
 ) {
     try {
+        // 权限验证
         const session = await getServerSession(authOptions);
         if (!session?.user || session.user.role !== 'TEACHER') {
             return NextResponse.json({ error: "未授权" }, { status: 401 });
         }
 
         const { students } = await request.json();
+        console.log('Received students:', students); // 添加日志
 
-        const examinees = await prisma.examinee.createMany({
+        // 批量创建考生
+        const result = await prisma.examinee.createMany({
             data: students.map((student: any) => ({
                 name: student.name,
                 studentId: student.studentId,
-                examId: params.examId,
-            })),
-            skipDuplicates: true,
+                examId: params.examId
+            }))
         });
 
+        console.log('Create result:', result); // 添加日志
+
         return NextResponse.json({ 
-            message: `成功导入 ${examinees.count} 名考生`,
-            count: examinees.count 
+            success: true,
+            count: result.count,
+            message: `成功导入 ${result.count} 名考生`
         });
+
     } catch (error) {
-        console.error('导入考生失败:', error);
-        return NextResponse.json(
-            { error: "导入考生失败" },
-            { status: 500 }
-        );
+        console.error('创建考生失败:', error);
+        return NextResponse.json({ 
+            error: "创建考生失败",
+            details: error instanceof Error ? error.message : '未知错误'
+        }, { status: 500 });
     }
 }
 
