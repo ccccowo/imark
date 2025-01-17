@@ -10,7 +10,6 @@ import { deleteDirectory } from '@/lib/fileUtils';
 // 辅助函数：验证坐标值
 function validateCoordinates(coordinates: any): boolean {
     try {
-        // 确保所有必要的属性都存在且为数字
         const { x, y, width, height } = coordinates;
         return (
             typeof x === 'number' && !isNaN(x) &&
@@ -36,12 +35,10 @@ export async function POST(
             return NextResponse.json({ error: "未授权" }, { status: 401 });
         }
 
-        // 2. 获取考试信息 - 添加状态检查
+        // 2. 获取考试信息
         const exam = await prisma.exam.findUnique({
             where: { 
                 id: params.examId,
-                // 添加状态检查，确保考试处于正确状态
-                status: 'READY'
             },
             include: {
                 questions: {
@@ -54,7 +51,15 @@ export async function POST(
         });
 
         if (!exam) {
-            return NextResponse.json({ error: "考试不存在或状态不正确" }, { status: 404 });
+            return NextResponse.json({ error: "考试不存在" }, { status: 404 });
+        }
+
+        if (!exam.paperImage) {
+            return NextResponse.json({ error: "请先上传样卷" }, { status: 400 });
+        }
+
+        if (exam.questions.length === 0) {
+            return NextResponse.json({ error: "请先设置题目区域" }, { status: 400 });
         }
 
         // 3. 文件处理前的验证
@@ -114,7 +119,6 @@ export async function POST(
                             width: Math.round(coordinates.width),
                             height: Math.round(coordinates.height)
                         };
-                        console.log('Extraction coordinates:', extractOptions);
 
                         const fileName = `${examinee.studentId}_q${question.orderNum}.jpg`;
                         const filePath = path.join(uploadDir, fileName);
@@ -124,7 +128,7 @@ export async function POST(
                         console.log('Original image info:', imageInfo);
 
                         // 获取样卷的原始尺寸
-                        const paperImageInfo = await sharp(path.join(process.cwd(), 'public', exam.paperImage!)).metadata();
+                        const paperImageInfo = await sharp(path.join(process.cwd(), 'public', exam.paperImage)).metadata();
                         console.log('Paper image info:', paperImageInfo);
 
                         // 如果考生试卷和样卷尺寸不同，需要调整坐标
@@ -139,10 +143,6 @@ export async function POST(
                                 width: Math.round(coordinates.width * scaleX),
                                 height: Math.round(coordinates.height * scaleY)
                             };
-
-                            console.log('Scale factors:', { scaleX, scaleY });
-                            console.log('Original coordinates:', coordinates);
-                            console.log('Adjusted coordinates:', adjustedCoordinates);
 
                             try {
                                 await sharp(buffer)
@@ -159,7 +159,8 @@ export async function POST(
                             }
                         }
 
-                        const answerQuestionImage = `/uploads/answers/${params.examId}-${fileName}`;
+                        // 修正图片路径
+                        const answerQuestionImage = `/uploads/answers/${params.examId}/${fileName}`;
 
                         // 创建答题记录 
                         await tx.answerQuestion.create({
@@ -169,7 +170,7 @@ export async function POST(
                                 questionId: question.id,
                                 examineeId: examinee.id,
                                 answerQuestionImage: answerQuestionImage,
-                                fullScore: 0,
+                                fullScore: question.score,
                                 isGraded: false
                             }
                         });
@@ -185,7 +186,7 @@ export async function POST(
                 where: { id: params.examId },
                 data: { 
                     status: 'GRADING',
-                    updatedAt: new Date() // 显式更新时间戳
+                    updatedAt: new Date()
                 }
             });
         });
