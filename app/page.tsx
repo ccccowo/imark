@@ -6,6 +6,7 @@ import { UserOutlined, BookOutlined, LoginOutlined, UserAddOutlined } from "@ant
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import axiosInstance from "@/lib/axios";
+import Calculator from './components/Calculator';
 
 const { Text } = Typography;
 
@@ -233,75 +234,78 @@ export default function Home() {
   ];
 
   return (
-    <div className="bg-gradient-animated flex items-center justify-center">
-      <Card 
-        style={{ width: 400 }}
-        className="glass-card hover:shadow-xl transition-shadow duration-300 border-0"
-      >
-        <h1 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">
-          智能阅卷平台
-        </h1>
-        
-        <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 hover:border-blue-200 transition-colors duration-300">
-          <div className="flex gap-4">
-            <Button
-              type={role === "STUDENT" ? "primary" : "default"}
-              icon={<BookOutlined />}
-              onClick={() => setRole("STUDENT")}
-              block
-              size="large"
-              className={`
-                ${role === "STUDENT" ? "shadow-md bg-gradient-to-r from-blue-500 to-blue-600" : ""}
-                hover:scale-105 transform transition-all duration-200
-                hover:border-blue-400
-              `}
-              style={{ 
-                borderColor: role === "STUDENT" ? undefined : '#d9d9d9',
-                color: role === "STUDENT" ? undefined : '#595959'
-              }}
-            >
-              我是学生
-            </Button>
-            <Button
-              type={role === "TEACHER" ? "primary" : "default"}
-              icon={<UserOutlined />}
-              onClick={() => setRole("TEACHER")}
-              block
-              size="large"
-              className={`
-                ${role === "TEACHER" ? "shadow-md bg-gradient-to-r from-blue-500 to-blue-600" : ""}
-                hover:scale-105 transform transition-all duration-200
-                hover:border-blue-400
-              `}
-              style={{ 
-                borderColor: role === "TEACHER" ? undefined : '#d9d9d9',
-                color: role === "TEACHER" ? undefined : '#595959'
-              }}
-            >
-              我是教师
-            </Button>
-          </div>
-          <div className="text-center mt-3">
-            <Text type="secondary" className="text-sm">
-              当前选择：
-              <span className="text-blue-600 font-medium ml-1">
-                {role === "STUDENT" ? "学生" : "教师"}身份
-              </span>
-            </Text>
-          </div>
+    <main className="min-h-screen p-8">
+      <Calculator />
+      <div className="bg-gradient-animated flex items-center justify-center">
+        <Card 
+          style={{ width: 400 }}
+          className="glass-card hover:shadow-xl transition-shadow duration-300 border-0"
+        >
+          <h1 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">
+            智能阅卷平台
+          </h1>
+          
+          <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 hover:border-blue-200 transition-colors duration-300">
+            <div className="flex gap-4">
+              <Button
+                type={role === "STUDENT" ? "primary" : "default"}
+                icon={<BookOutlined />}
+                onClick={() => setRole("STUDENT")}
+                block
+                size="large"
+                className={`
+                  ${role === "STUDENT" ? "shadow-md bg-gradient-to-r from-blue-500 to-blue-600" : ""}
+                  hover:scale-105 transform transition-all duration-200
+                  hover:border-blue-400
+                `}
+                style={{ 
+                  borderColor: role === "STUDENT" ? undefined : '#d9d9d9',
+                  color: role === "STUDENT" ? undefined : '#595959'
+                }}
+              >
+                我是学生
+              </Button>
+              <Button
+                type={role === "TEACHER" ? "primary" : "default"}
+                icon={<UserOutlined />}
+                onClick={() => setRole("TEACHER")}
+                block
+                size="large"
+                className={`
+                  ${role === "TEACHER" ? "shadow-md bg-gradient-to-r from-blue-500 to-blue-600" : ""}
+                  hover:scale-105 transform transition-all duration-200
+                  hover:border-blue-400
+                `}
+                style={{ 
+                  borderColor: role === "TEACHER" ? undefined : '#d9d9d9',
+                  color: role === "TEACHER" ? undefined : '#595959'
+                }}
+              >
+                我是教师
+              </Button>
+            </div>
+            <div className="text-center mt-3">
+              <Text type="secondary" className="text-sm">
+                当前选择：
+                <span className="text-blue-600 font-medium ml-1">
+                  {role === "STUDENT" ? "学生" : "教师"}身份
+                </span>
+              </Text>
+            </div>
+          </Card>
+          
+          <Tabs 
+            items={items} 
+            centered
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            className="custom-tabs"
+            style={{ 
+              color: '#262626',
+            }}
+          />
         </Card>
-        
-        <Tabs 
-          items={items} 
-          centered
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          className="custom-tabs"
-          style={{ 
-            color: '#262626',
-          }}
-        />
-      </Card>
-    </div>
+      </div>
+    </main>
   );
 }
