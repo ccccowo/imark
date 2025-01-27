@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Class } from "@/app/types";
 import axiosInstance from '@/lib/axios';
 import { ExamQuickView } from './ExamQuickView';
+import AIAssistant from "@/app/components/AIAssistant";
 
 const { Title, Text } = Typography;
 
@@ -88,6 +89,8 @@ export function TeacherDashboard({ session, classes, setClasses, loading, fetchC
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {/* 智能助手 */}
+      <AIAssistant></AIAssistant>
       {/* 欢迎卡片 */}
       <Card className="mb-6 shadow-sm">
         <div className="flex items-center gap-4">
