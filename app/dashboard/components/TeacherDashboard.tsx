@@ -1,15 +1,15 @@
 "use client";
 
-import { Card, Button, Input, Modal, message, Typography, Space, Row, Col, Spin, Empty, List, Tag, Tabs } from "antd";
+import { Card, Button, Input, Modal, message, Typography, Space, Row, Col, Spin, Empty, List, Tag, Form } from "antd";
 import { 
   PlusOutlined, DeleteOutlined, SettingOutlined, UserOutlined,
-  FileTextOutlined, EditOutlined, CheckCircleOutlined, TeamOutlined,
-  ClockCircleOutlined 
+  TeamOutlined
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Class } from "@/app/types";
 import axiosInstance from '@/lib/axios';
+import { ExamQuickView } from './ExamQuickView';
 
 const { Title, Text } = Typography;
 
@@ -26,6 +26,10 @@ export function TeacherDashboard({ session, classes, setClasses, loading, fetchC
   const [searchName, setSearchName] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
+  const [createClassModalVisible, setCreateClassModalVisible] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassSubject, setNewClassSubject] = useState('');
+  const [createClassLoading, setCreateClassLoading] = useState(false);
 
   const createClass = async (name: string) => {
     try {
@@ -57,8 +61,33 @@ export function TeacherDashboard({ session, classes, setClasses, loading, fetchC
     }
   };
 
+  const handleCreateClass = async () => {
+    if (!newClassName.trim() || !newClassSubject.trim()) {
+      message.error('班级名称和科目为必填项');
+      return;
+    }
+
+    setCreateClassLoading(true);
+    try {
+      const response = await axiosInstance.post('/api/classes', {
+        name: newClassName.trim(),
+        subject: newClassSubject.trim()
+      });
+
+      message.success('创建班级成功');
+      setCreateClassModalVisible(false);
+      setNewClassName('');
+      setNewClassSubject('');
+      fetchClasses();
+    } catch (error: any) {
+      message.error(error.response?.data?.error || '创建班级失败');
+    } finally {
+      setCreateClassLoading(false);
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto space-y-6">
       {/* 欢迎卡片 */}
       <Card className="mb-6 shadow-sm">
         <div className="flex items-center gap-4">
@@ -95,7 +124,7 @@ export function TeacherDashboard({ session, classes, setClasses, loading, fetchC
                 />
                 <Button
                   icon={<PlusOutlined />}
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => setCreateClassModalVisible(true)}
                 >
                   创建班级
                 </Button>
@@ -109,7 +138,7 @@ export function TeacherDashboard({ session, classes, setClasses, loading, fetchC
             ) : classes.length === 0 ? (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="暂无班级，点击“创建班级”按钮开始添加"
+                description="暂无班级，点击「创建班级」按钮开始添加"
               />
             ) : (
               <List
@@ -141,6 +170,7 @@ export function TeacherDashboard({ session, classes, setClasses, loading, fetchC
                       title={cls.name}
                       description={
                         <Space direction="vertical" size="small">
+                          <Text type="secondary">科目：{cls.subject}</Text>
                           <Text type="secondary">{`${cls._count.students} 名学生`}</Text>
                           <Text type="secondary" copyable={{ text: cls.id }} style={{ fontSize: 12 }}>
                             班级编号：{cls.id}
@@ -164,104 +194,40 @@ export function TeacherDashboard({ session, classes, setClasses, loading, fetchC
           </Card>
         </Col>
 
-        {/* 考试管理 */}
+        {/* 考试快捷视图 */}
         <Col span={24} lg={10}>
-          <Card
-            title={
-              <div className="flex items-center gap-2">
-                <FileTextOutlined />
-                <span>考试管理</span>
-              </div>
-            }
-            className="shadow-sm"
-          >
-            <Tabs
-              items={[
-                {
-                  key: 'pending',
-                  label: (
-                    <span>
-                      <ClockCircleOutlined /> 待批改
-                    </span>
-                  ),
-                  children: (
-                    <Empty
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description="暂无待批改的考试"
-                    />
-                  ),
-                },
-                {
-                  key: 'grading',
-                  label: (
-                    <span>
-                      <EditOutlined /> 批改中
-                    </span>
-                  ),
-                  children: (
-                    <Empty
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description="暂无正在批改的考试"
-                    />
-                  ),
-                },
-                {
-                  key: 'completed',
-                  label: (
-                    <span>
-                      <CheckCircleOutlined /> 已完成
-                    </span>
-                  ),
-                  children: (
-                    <Empty
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description="暂无已完成的考试"
-                    />
-                  ),
-                },
-              ]}
-            />
-          </Card>
+          <ExamQuickView />
         </Col>
       </Row>
 
       {/* 创建班级 Modal */}
       <Modal
         title="创建新班级"
-        open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        footer={null}
-        maskClosable={false}
-        destroyOnClose
+        open={createClassModalVisible}
+        onOk={handleCreateClass}
+        onCancel={() => {
+          setCreateClassModalVisible(false);
+          setNewClassName('');
+          setNewClassSubject('');
+        }}
+        confirmLoading={createClassLoading}
       >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget);
-            const className = formData.get("className") as string;
-            if (className.trim()) {
-              createClass(className.trim());
-            }
-          }}
-        >
-          <Space direction="vertical" className="w-full">
+        <Form layout="vertical">
+          <Form.Item label="班级名称" required>
             <Input
-              name="className"
               placeholder="请输入班级名称"
-              required
-              autoFocus
-              maxLength={50}
+              value={newClassName}
+              onChange={(e) => setNewClassName(e.target.value)}
             />
-            <div className="flex justify-end gap-2">
-              <Button onClick={() => setIsModalOpen(false)}>
-                取消
-              </Button>
-              <Button htmlType="submit">
-                创建
-              </Button>
-            </div>
-          </Space>
-        </form>
+          </Form.Item>
+          <Form.Item label="科目" required>
+            <Input
+              placeholder="请输入科目"
+              value={newClassSubject}
+              onChange={(e) => setNewClassSubject(e.target.value)}
+            />
+          </Form.Item>
+        </Form>
       </Modal>
 
       {/* 删除班级 Modal */}
@@ -279,7 +245,7 @@ export function TeacherDashboard({ session, classes, setClasses, loading, fetchC
         okText="删除"
         cancelText="取消"
       >
-        <p>这将删除班级"{classToDelete?.name}"及其所有相关数据。此操作不可撤销。</p>
+        <p>这将删除班级「{classToDelete?.name}」及其所有相关数据。此操作不可撤销。</p>
       </Modal>
     </div>
   );

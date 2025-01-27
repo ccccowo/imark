@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Table, Button, Space, message, Card, Input, Tag, Image, Tooltip, Radio, Divider } from 'antd';
+import { Table, Button, Space, message, Card, Input, Tag, Image, Tooltip, Radio, Divider, Alert } from 'antd';
 import { EditOutlined, CheckOutlined, RobotOutlined, ZoomInOutlined, ZoomOutOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import axiosInstance from '@/lib/axios';
 import { useRouter } from 'next/navigation';
@@ -10,7 +10,7 @@ interface ExamInfo {
     id: string;
     name: string;
     fullScore: number;
-    status: string;
+    status: 'NOT_READY' | 'GRADING' | 'COMPLETED';
 }
 
 interface AnswerQuestion {
@@ -79,23 +79,21 @@ export default function GradePage({ params }: { params: { examId: string } }) {
         fetchAnswers();
     }, [params.examId]);
 
-    // AI 批改
-    const handleAIGrade = async (answerId: string) => {
+    // 检查是否所有题目都已批改
+    const checkAllGraded = () => {
+        return answers.length > 0 && answers.every(answer => answer.isGraded);
+    };
+
+    // 更新考试状态
+    const updateExamStatus = async () => {
         try {
-            setLoading(true);
-            const response = await axiosInstance.post(`/api/exams/${params.examId}/grade`, {
-                answerId
+            await axiosInstance.post(`/api/exams/${params.examId}/update-status`, {
+                status: 'COMPLETED'
             });
-            
-            if (response.data.success) {
-                message.success('AI批改完成');
-                fetchAnswers(); // 刷新列表
-            }
+            fetchExamInfo(); // 刷新考试信息
         } catch (error) {
-            console.error('AI批改失败:', error);
-            message.error('AI批改失败');
-        } finally {
-            setLoading(false);
+            console.error('更新考试状态失败:', error);
+            message.error('更新考试状态失败');
         }
     };
 
@@ -103,13 +101,24 @@ export default function GradePage({ params }: { params: { examId: string } }) {
     const handleTeacherGrade = async (answerId: string, score: number, comment: string) => {
         try {
             setLoading(true);
-            await axiosInstance.post(`/api/exams/${params.examId}/grade/teacher`, {
+            const response = await axiosInstance.post(`/api/exams/${params.examId}/grade/teacher`, {
                 answerId,
                 score,
                 comment
             });
-            message.success('保存成功');
-            fetchAnswers();
+            
+            if (response.data.success) {
+                message.success('保存成功');
+                await fetchAnswers(); // 刷新列表
+                
+                // 检查是否所有题目都已批改
+                if (checkAllGraded()) {
+                    await updateExamStatus();
+                }
+                
+                // 自动跳转到下一题
+                handleNavigate('next');
+            }
         } catch (error) {
             console.error('保存失败:', error);
             message.error('保存失败');
@@ -168,25 +177,6 @@ export default function GradePage({ params }: { params: { examId: string } }) {
             width: 50,
             render: (score: number) => (
                 <Tag color="purple" className="px-1 text-xs">{score}分</Tag>
-            )
-        },
-        {
-            title: 'AI评分',
-            key: 'aiScore',
-            width: 80,
-            render: (_: any, record: AnswerQuestion) => (
-                <Space size={0}>
-                    {record.aiScore !== null ? (
-                        <Tag color="blue" className="px-1 text-xs">{record.aiScore}分</Tag>
-                    ) : (
-                        <Tag color="default" className="px-1 text-xs">未评分</Tag>
-                    )}
-                    {record.aiConfidence && (
-                        <Tooltip title="AI置信度">
-                            <Tag color="cyan" className="px-1 text-xs ml-1">{Math.round(record.aiConfidence * 100)}%</Tag>
-                        </Tooltip>
-                    )}
-                </Space>
             )
         },
         {
@@ -256,25 +246,6 @@ export default function GradePage({ params }: { params: { examId: string } }) {
             width: 50,
             render: (score: number) => (
                 <Tag color="purple" className="px-1 text-xs">{score}分</Tag>
-            )
-        },
-        {
-            title: 'AI评分',
-            key: 'aiScore',
-            width: 80,
-            render: (_: any, record: AnswerQuestion) => (
-                <Space size={0}>
-                    {record.aiScore !== null ? (
-                        <Tag color="blue" className="px-1 text-xs">{record.aiScore}分</Tag>
-                    ) : (
-                        <Tag color="default" className="px-1 text-xs">未评分</Tag>
-                    )}
-                    {record.aiConfidence && (
-                        <Tooltip title="AI置信度">
-                            <Tag color="cyan" className="px-1 text-xs ml-1">{Math.round(record.aiConfidence * 100)}%</Tag>
-                        </Tooltip>
-                    )}
-                </Space>
             )
         },
         {
@@ -356,11 +327,40 @@ export default function GradePage({ params }: { params: { examId: string } }) {
                     <Tag color="purple" className="text-base px-2">
                         总分：{examInfo?.fullScore || '--'} 分
                     </Tag>
-                    <Tag color="blue" className="text-base px-2">
-                        {examInfo?.status === 'GRADING' ? '批改中' : '已完成'}
+                    <Tag color={examInfo?.status === 'COMPLETED' ? 'success' : 'blue'} className="text-base px-2">
+                        {examInfo?.status === 'COMPLETED' ? '批改完成' : '批改中'}
                     </Tag>
+                    {examInfo?.status === 'COMPLETED' && (
+                        <Button 
+                            type="primary"
+                            onClick={() => router.push(`/dashboard/exams/${params.examId}/results`)}
+                        >
+                            查看成绩
+                        </Button>
+                    )}
                 </div>
             </div>
+
+            {/* 添加批改完成提醒 */}
+            {examInfo?.status === 'COMPLETED' && (
+                <Alert
+                    message="批改完成提醒"
+                    description={
+                        <div>
+                            所有答题已完成批改！您可以：
+                            <Button 
+                                type="link" 
+                                onClick={() => router.push(`/dashboard/exams/${params.examId}/results`)}
+                            >
+                                点击此处查看成绩
+                            </Button>
+                        </div>
+                    }
+                    type="success"
+                    showIcon
+                    className="mb-4"
+                />
+            )}
 
             {/* 使用说明 - 可折叠 */}
             <Card 
@@ -544,53 +544,12 @@ export default function GradePage({ params }: { params: { examId: string } }) {
                                     }}
                                 />
                             </div>
-                            {/* AI批改按钮 */}
-                            {!currentAnswer.aiScore && (
-                                <div className="mb-4">
-                                    <Button
-                                        onClick={() => handleAIGrade(currentAnswer.id)}
-                                        loading={loading}
-                                        block
-                                        size="large"
-                                    >
-                                        获取AI批改建议
-                                    </Button>
-                                </div>
-                            )}
-
-                            {/* AI 建议 */}
-                            {currentAnswer.aiScore !== null && (
-                                <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
-                                    <div className="flex items-center mb-2">
-                                        <span className="mr-2"></span>
-                                        <span className="font-medium">AI 评分建议</span>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <span>建议分数：</span>
-                                            <Tag color="blue">{currentAnswer.aiScore} 分</Tag>
-                                        </div>
-                                        {currentAnswer.aiComment && (
-                                            <div>
-                                                <div className="text-gray-500 mb-1">评语：</div>
-                                                <div className="bg-white p-3 rounded-lg shadow-sm">{currentAnswer.aiComment}</div>
-                                            </div>
-                                        )}
-                                        {currentAnswer.aiConfidence && (
-                                            <div className="flex justify-between items-center">
-                                                <span>置信度：</span>
-                                                <Tag color="cyan">{Math.round(currentAnswer.aiConfidence * 100)}%</Tag>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
 
                             {/* 教师评分区域 */}
                             <div className="space-y-4">
                                 <div>
                                     <div className="flex justify-between items-center mb-2">
-                                        <label className="font-medium">教师评分</label>
+                                        <label className="font-medium">评分</label>
                                         <Space>
                                             <Button size="small" danger onClick={() => handleQuickScore(0)}>0分</Button>
                                             <Button size="small" onClick={() => handleQuickScore(currentAnswer.question.score)}>满分</Button>

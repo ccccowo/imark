@@ -12,25 +12,38 @@ export async function GET() {
       return NextResponse.json({ error: "未授权" }, { status: 401 });
     }
 
-    // 基本查询测试
-    const classes = await prisma.class.findMany({
+    // 获取学生加入的班级信息
+    const studentClasses = await prisma.studentClass.findMany({
       where: {
-        students: {
-          some: {
-            studentId: session.user.id
+        studentId: session.user.id
+      },
+      include: {
+        class: {
+          include: {
+            _count: {
+              select: {
+                students: true
+              }
+            }
           }
         }
+      },
+      orderBy: {
+        joinTime: 'desc'
       }
     });
 
-    // 返回最基本的数据
-    return NextResponse.json(classes.map((cls: { id: any; name: any; }) => ({
-      id: cls.id,
-      name: cls.name,
-      _count: { students: 0 },
+    // 格式化返回数据
+    const formattedClasses = studentClasses.map(sc => ({
+      id: sc.class.id,
+      name: sc.class.name,
+      subject: sc.class.subject,
+      _count: sc.class._count,
       examStatus: "未准备" as const,
-      joinTime: new Date().toISOString()
-    })));
+      joinTime: sc.joinTime.toISOString()
+    }));
+
+    return NextResponse.json(formattedClasses);
 
   } catch (error) {
     console.error('Error:', error);

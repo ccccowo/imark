@@ -30,14 +30,14 @@ export interface EditableCellProps {
 export interface Class {
     id: string;
     name: string;
-    teacherId: string;
+    subject: string;
     _count: {
       students: number;
     };
-    examStatus: "未准备" | "已准备" | "待批改" | "已完成";
+    examStatus?: string;
     examName?: string;
-    joinTime: string;
-  } 
+    joinTime?: string;
+} 
 export interface Examinee {
     id: string;
     name: string;

@@ -1,6 +1,6 @@
 'use client'
 
-import { Space, Button, Table, Modal, Form, Input, message, Tag, Upload } from 'antd'
+import { Space, Button, Table, Modal, Form, Input, message, Tag, Upload, Spin, Empty } from 'antd'
 import {
     UploadOutlined,
     ExclamationCircleOutlined,
@@ -60,6 +60,7 @@ export default function ExamManagement({
     const [showExamineesModal, setShowExamineesModal] = useState(false);
     // 样卷列表
     const [exams, setExams] = useState<Exam[]>([]);
+    const [loading, setLoading] = useState(true);
     const [showPaperCropModal, setShowPaperCropModal] = useState(false);
     const [paperImage, setPaperImage] = useState<string>('');
     const [showViewPaperModal, setShowViewPaperModal] = useState(false);
@@ -69,14 +70,17 @@ export default function ExamManagement({
     // 获取考试列表
     const fetchExams = async () => {
         try {
+            setLoading(true);
             const response = await axiosInstance.get(`/api/classes/${classId}/exams`);
             if (response.data) {
-                console.log('Fetched exams:', response.data); // 调试日志
+                console.log('Fetched exams:', response.data);
                 setExams(response.data);
             }
         } catch (error) {
             console.error('获取考试列表失败:', error);
             message.error('获取考试列表失败');
+        } finally {
+            setLoading(false);
         }
     };
     // 处理上传考试名单
@@ -245,9 +249,11 @@ export default function ExamManagement({
             );
 
             if (response.data && response.data.imageUrl) {
-                message.success('试卷上传成功');
+                message.success('试卷上传成功，即将进入切割页面');
                 await fetchExams(); // 刷新状态
                 setCurrentPaperUrl(response.data.imageUrl);
+                // 跳转到切割页面
+                router.push(`/dashboard/exams/${examId}/crop?classId=${classId}`);
             }
         } catch (error) {
             message.error('试卷上传失败');
@@ -349,7 +355,7 @@ export default function ExamManagement({
                                 icon={<TeamOutlined />}
                                 className="text-gray-600 hover:text-blue-500"
                             >
-                                {examinees.length} 人
+                                {examinees?.length || 0} 人
                             </Button>
                         )
                     }
@@ -510,6 +516,17 @@ export default function ExamManagement({
                 rowKey="id"
                 pagination={{ pageSize: 10 }}
                 className="custom-table"
+                loading={loading}
+                locale={{
+                    emptyText: loading ? (
+                        <div className="py-10">
+                            <Spin size="large" />
+                            <div className="mt-3 text-gray-500">加载中...</div>
+                        </div>
+                    ) : (
+                        <Empty description="暂无考试" />
+                    )
+                }}
             />
 
             {/* 考试表单模态框 */}
@@ -593,7 +610,7 @@ export default function ExamManagement({
                             {examToDelete?.name}
                         </div>
                         <div className="text-gray-500 text-sm mt-1">
-                            考生人数: {examToDelete?.examinees.length || 0}
+                            考生人数: {examToDelete?.examinees?.length || 0}
                         </div>
                     </div>
                 </div>
@@ -641,7 +658,7 @@ export default function ExamManagement({
                 <div className="bg-blue-50 p-3 rounded-lg mb-4">
                     <div className="text-blue-600 text-sm">
                         <InfoCircleOutlined className="mr-2" />
-                        请确保上传的 Excel 文件包含"name"和"studentId"列
+                        请确保上传的 Excel 文件包含「name」和「studentId」列
                     </div>
                 </div>
                 <Table
