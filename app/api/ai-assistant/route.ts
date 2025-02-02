@@ -1,108 +1,69 @@
 import { NextResponse } from 'next/server';
-import { PythonShell } from 'python-shell';
-import path from 'path';
-
-// 配置路由选项
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+import { exec } from 'child_process';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]/route';
+import { getHandler } from '@/lib/handlers';
+import axiosInstance from '@/lib/axios';
 
 export async function POST(request: Request) {
     try {
         const { prompt, mode } = await request.json();
-        console.log('收到请求:', { prompt, mode });
-
-        const scriptPath = path.join(process.cwd(), 'scripts');
-        const docsPath = path.join(process.cwd(), 'docs', 'api');
-        console.log('Python脚本路径:', scriptPath);
-        console.log('文档路径:', docsPath);
-
-        // 检查文档目录是否存在
-        try {
-            const fs = require('fs');
-            const files = fs.readdirSync(docsPath);
-            console.log('找到的文档文件:', files);
-        } catch (error) {
-            console.error('读取文档目录失败:', error);
-        }
-
-        const options = {
-            mode: 'text' as const,
-            pythonPath: 'python',
-            pythonOptions: ['-u'],  // 使用无缓冲输出
-            scriptPath,
-            args: [mode, prompt],
-            encoding: 'utf8' as const,
-            env: { 
-                ...process.env,
-                PYTHONIOENCODING: 'utf8',
-                PYTHONLEGACYWINDOWSSTDIO: '1'  // 在 Windows 上可能需要
-            }
-        };
-
-        console.log('开始执行Python脚本，选项:', options);
-        const result = await PythonShell.run('ai_assistant.py', options);
-        console.log('Python脚本完整输出:', result);
+        const session = await getServerSession(authOptions);
         
-        if (!result || result.length === 0) {
-            throw new Error('Python脚本没有返回结果');
-        }
-        
-        // 找到最后一个有效的 JSON 输出
-        let lastJsonOutput = null;
-        for (let i = result.length - 1; i >= 0; i--) {
-            try {
-                lastJsonOutput = JSON.parse(result[i]);
-                break;
-            } catch (e) {
-                continue;
-            }
-        }
-        
-        if (!lastJsonOutput) {
-            throw new Error('无法解析Python脚本的输出');
+        if (!session?.user) {
+            return NextResponse.json({ error: "未授权" }, { status: 401 });
         }
 
-        console.log('解析后的响应:', lastJsonOutput);
-
-        // 如果是执行模式，解析响应并执行相应操作
-        if (mode === 'execute') {
-            try {
-                // 这里可以添加更多的命令解析
-                if (prompt.toLowerCase().includes('创建班级')) {
-                    const className = prompt.match(/班级(.+?)班/)?.[1] + '班';
-                    const subject = prompt.match(/学科为(.+?)$/)?.[1];
-                    
-                    if (className && subject) {
-                        const createClassResponse = await fetch('http://localhost:3000/api/classes', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                name: className,
-                                subject: subject
-                            })
-                        });
-                        
-                        if (createClassResponse.ok) {
-                            return NextResponse.json({
-                                response: `已成功创建班级：${className}，学科：${subject}`
-                            });
-                        }
+        // 设置服务器端的 baseURL 和认证
+        axiosInstance.defaults.baseURL = 'http://localhost:3000';
+        axiosInstance.defaults.headers.common['Cookie'] = request.headers.get('cookie') || '';
+        
+        // 执行 Python 脚本
+        const result = await new Promise<string[]>((resolve, reject) => {
+            exec(`python scripts/ai_assistant.py ${mode} "${prompt}"`, 
+                { encoding: 'utf8', maxBuffer: 1024 * 1024 },
+                (error, stdout, stderr) => {
+                    if (error) {
+                        console.error('Python脚本执行错误:', error);
+                        reject(error);
+                        return;
                     }
+                    resolve(stdout.trim().split('\n'));
                 }
-            } catch (error) {
-                console.error('执行命令失败:', error);
-                throw error;
+            );
+        });
+
+        // 解析最后一行 JSON
+        const lastLine = result[result.length - 1];
+        const lastJsonOutput = JSON.parse(lastLine);
+
+        // 执行模式处理
+        if (mode === 'execute') {
+            const handler = getHandler(lastJsonOutput.action);
+            if (!handler) {
+                return NextResponse.json({ 
+                    error: `不支持的操作: ${lastJsonOutput.action}` 
+                }, { status: 400 });
             }
+
+            console.log(`\n=== 执行操作: ${lastJsonOutput.action} ===`);
+            console.log('数据:', lastJsonOutput.data);
+
+            const result = await handler.handle(lastJsonOutput.data);
+            if (!result.success) {
+                return NextResponse.json({ error: result.error }, { status: 400 });
+            }
+
+            return NextResponse.json({ response: result.response });
         }
 
+        // 非执行模式，直接返回响应
         return NextResponse.json(lastJsonOutput);
+        
     } catch (error: any) {
-        console.error('AI助手请求失败:', error);
-        return NextResponse.json(
-            { error: '请求失败: ' + error.message },
-            { status: 500 }
-        );
+        console.error('处理错误:', error);
+        return NextResponse.json({
+            error: error.message || '处理失败'
+        }, { status: 500 });
     }
-} 
+}

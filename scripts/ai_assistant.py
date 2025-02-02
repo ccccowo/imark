@@ -5,6 +5,8 @@ import os
 import re
 import sys
 import io
+from prompts import QA_SYSTEM_PROMPT, EXECUTE_SYSTEM_PROMPT
+import traceback
 
 # 设置标准输出编码
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -69,30 +71,91 @@ def extract_api_info(text, action):
     # 直接返回完整文档内容，不进行分割和筛选
     return text
 
+def extract_json(content: str) -> str:
+    """提取最后一个完整的 JSON 对象"""
+    print("\n=== 开始提取JSON ===")
+    print("原始内容:", repr(content))
+    
+    # 首先尝试提取 markdown 代码块中的 JSON
+    json_blocks = re.findall(r'```(?:json)?\s*({[\s\S]*?})\s*```', content)
+    if json_blocks:
+        print("从markdown代码块中提取到JSON")
+        json_str = json_blocks[-1]  # 取最后一个
+    else:
+        print("尝试直接提取JSON对象")
+        # 使用更宽松的正则表达式
+        pattern = r'{(?:[^{}]|{[^{}]*})*}'
+        json_matches = re.findall(pattern, content)
+        
+        if not json_matches:
+            # 如果还是找不到，尝试最简单的匹配
+            json_matches = re.findall(r'{.*?}', content, re.DOTALL)
+            
+        if not json_matches:
+            print("未找到JSON对象，原始内容：")
+            print(content)
+            raise ValueError("未找到有效的JSON格式")
+            
+        print(f"找到 {len(json_matches)} 个JSON对象")
+        for i, match in enumerate(json_matches):
+            print(f"JSON {i + 1}:", repr(match))
+            
+        json_str = json_matches[-1]  # 取最后一个
+    
+    # 清理 JSON 字符串
+    print("\n原始JSON字符串:", repr(json_str))
+    
+    # 1. 移除换行和多余的空格
+    json_str = re.sub(r'\s+', ' ', json_str).strip()
+    print("清理空白后:", repr(json_str))
+    
+    # 2. 确保字段名称正确
+    json_str = json_str.replace('"createclass"', '"create_class"')
+    json_str = json_str.replace('"apiclasses"', '"/api/classes"')
+    json_str = json_str.replace('：', ':')  # 处理中文冒号
+    json_str = json_str.replace('，', ',')  # 处理中文逗号
+    
+    # 3. 验证 JSON 格式
+    try:
+        # 尝试解析确保是有效的 JSON
+        parsed_json = json.loads(json_str)
+        print("JSON 解析成功:", json.dumps(parsed_json, ensure_ascii=False, indent=2))
+        return json_str
+    except json.JSONDecodeError as e:
+        print(f"JSON 验证失败: {e}")
+        print("尝试处理的内容:", repr(json_str))
+        raise ValueError(f"无效的JSON格式: {e}")
+
 def query_llama(prompt: str, mode: str = "qa") -> str:
     try:
-        # 加载文档并清理格式
         docs = load_docs()
-        # 清理文档中的多余换行和空格
         docs = ' '.join(docs.split())
         
-        # 构建消息数组
-        messages = [
-            {
-                "role": "system",
-                "content": """你是一个助手，你的任务是：
-                1. 仔细阅读提供的文档内容
-                2. 直接使用文档中的信息回答问题
-                3. 不要推测或添加文档中没有的信息
-                4. 如果文档中有明确的答案，直接引用文档回答"""
-            },
-            {
-                "role": "user",
-                "content": f"这是文档内容：\n{docs}\n\n请回答这个问题：{prompt}"
-            }
-        ]
+        if mode == "qa":
+            messages = [
+                {
+                    "role": "system",
+                    "content": QA_SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": f"这是文档内容：\n{docs}\n\n请回答问题：{prompt}"
+                }
+            ]
+        else:  # execute mode
+            messages = [
+                {
+                    "role": "system",
+                    "content": EXECUTE_SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
         
-        print("发送到Ollama的消息:", json.dumps(messages, ensure_ascii=False))
+        print("\n=== 发送到AI的消息 ===")
+        print(json.dumps(messages, ensure_ascii=False, indent=2))
         
         response = requests.post(
             "http://localhost:11434/api/chat",
@@ -100,31 +163,86 @@ def query_llama(prompt: str, mode: str = "qa") -> str:
                 "model": "deepseek-r1:1.5b",
                 "messages": messages,
                 "stream": False,
-                "temperature": 0.1,  # 降低温度，使回答更确定
-                "top_p": 0.1        # 降低随机性
+                "temperature": 0.01,
+                "top_p": 0.1,
+                "num_predict": 256,
+                "stop": ["\n\n", "```"]
             }
         )
         
         if response.status_code == 200:
-            content = response.json()["message"]["content"]
-            return content
+            content = response.json()["message"]["content"].strip()
+            print("\n=== AI原始响应 ===")
+            print(repr(content))
+            
+            if mode == "execute":
+                try:
+                    # 提取和解析 JSON
+                    json_str = extract_json(content)
+                    result = json.loads(json_str)
+                    
+                    print("\n=== 解析后的JSON对象 ===")
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                    
+                    # 验证字段
+                    required_fields = ["action", "endpoint", "method", "data"]
+                    required_data_fields = ["name", "subject"]
+                    
+                    if not all(key in result for key in required_fields):
+                        raise ValueError("缺少必要的字段")
+                    if not all(key in result["data"] for key in required_data_fields):
+                        raise ValueError("data中缺少必要的字段")
+                    
+                    # 确保字段值正确
+                    result["action"] = "create_class"
+                    result["endpoint"] = "/api/classes"
+                    result["method"] = "POST"
+                    
+                    # 确保班级名称以"班"结尾
+                    if not result["data"]["name"].endswith("班"):
+                        result["data"]["name"] += "班"
+                    
+                    print("\n=== 最终处理后的JSON ===")
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                    
+                    return json.dumps(result, ensure_ascii=False)
+                    
+                except Exception as e:
+                    print(f"\n=== 处理错误 ===")
+                    print(f"错误类型: {type(e).__name__}")
+                    print(f"错误信息: {str(e)}")
+                    return json.dumps({
+                        "error": f"处理失败: {str(e)}"
+                    }, ensure_ascii=False)
+            else:
+                return json.dumps({
+                    "response": content
+                }, ensure_ascii=False)
         else:
-            return f"Error: {response.status_code}"
+            return json.dumps({
+                "error": f"请求失败 ({response.status_code})"
+            }, ensure_ascii=False)
             
     except Exception as e:
-        return f"Error: {str(e)}"
+        print(f"\n=== 系统错误 ===")
+        print(f"错误类型: {type(e).__name__}")
+        print(f"错误信息: {str(e)}")
+        return json.dumps({
+            "error": f"系统错误: {str(e)}"
+        }, ensure_ascii=False)
 
 # 修改main部分的打印逻辑
 if __name__ == "__main__":
-    try:
-        if len(sys.argv) > 2:
-            mode = sys.argv[1]
-            prompt = sys.argv[2]
-            result = query_llama(prompt, mode)
-            
-            # 只输出一个JSON响应
-            print(json.dumps({"response": result}, ensure_ascii=False))
-        else:
-            print(json.dumps({"response": "缺少必要的参数"}, ensure_ascii=False))
-    except Exception as e:
-        print(json.dumps({"response": f"程序执行错误: {str(e)}"}, ensure_ascii=False))
+    if len(sys.argv) > 2:
+        mode = sys.argv[1]
+        prompt = sys.argv[2]
+        print(f"\n=== 接收到的参数 ===")
+        print(f"模式: {mode}")
+        print(f"提示: {prompt}")
+        result = query_llama(prompt, mode)
+        print("\n=== 最终输出 ===")
+        print(result)
+    else:
+        print(json.dumps({
+            "error": "缺少必要的参数"
+        }, ensure_ascii=False))
