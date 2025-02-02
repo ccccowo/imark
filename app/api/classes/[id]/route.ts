@@ -54,25 +54,59 @@ export async function DELETE(
     { params }: { params: { id: string } }
 ) {
     try {
-        // 权限验证
         const session = await getServerSession(authOptions);
         if (!session?.user || session.user.role !== 'TEACHER') {
             return NextResponse.json({ error: "未授权" }, { status: 401 });
         }
 
-        // 使用事务确保数据一致性
         await prisma.$transaction(async (tx) => {
-            // 1. 删除相关的考试记录
+            // 1. 删除答题记录
+            await tx.answerQuestion.deleteMany({
+                where: {
+                    exam: {
+                        classId: params.id
+                    }
+                }
+            });
+
+            // 2. 删除考生记录
+            await tx.examinee.deleteMany({
+                where: {
+                    exam: {
+                        classId: params.id
+                    }
+                }
+            });
+
+            // 3. 删除考试结果
+            await tx.examResult.deleteMany({
+                where: {
+                    exam: {
+                        classId: params.id
+                    }
+                }
+            });
+
+            // 4. 删除考试题目
+            await tx.question.deleteMany({
+                where: {
+                    exam: {
+                        classId: params.id
+                    }
+                }
+            });
+
+            // 5. 删除考试记录
             await tx.exam.deleteMany({
                 where: { classId: params.id }
             });
 
-            // 2. 删除学生-班级关联
+            // 6. 删除学生-班级关联
             await tx.studentClass.deleteMany({
                 where: { classId: params.id }
             });
 
-            // 3. 删除班级
+            // 7. 删除班级
             await tx.class.delete({
                 where: { id: params.id }
             });
