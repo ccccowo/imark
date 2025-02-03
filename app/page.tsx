@@ -6,7 +6,6 @@ import { UserOutlined, BookOutlined, LoginOutlined, UserAddOutlined } from "@ant
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import axiosInstance from "@/lib/axios";
-import Calculator from './components/Calculator';
 
 const { Text } = Typography;
 
@@ -235,7 +234,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen p-8">
-      <Calculator />
       <div className="bg-gradient-animated flex items-center justify-center">
         <Card 
           style={{ width: 400 }}
