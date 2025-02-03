@@ -51,7 +51,7 @@ def read_file_with_fallback(file_path, encodings=('utf-8-sig', 'gbk')):
 # 处理message
 def handle_message(prompt: str, mode: str = "qa") -> list:
     if mode == "qa":
-        system_prompt = QA_SYSTEM_PROMPT
+        system_prompt = "你是一个问题回答助手，请根据文档内容回答问题"
         docs = load_docs()
         docs = ' '.join(docs.split())
         user_content = f"这是文档内容：\n{docs}\n\n请回答问题：{prompt}"

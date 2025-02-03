@@ -47,21 +47,61 @@ DELETE_CLASS_PROMPT = """你是API调用解析助手。生成删除班级的API�
 # 提示词配置
 PROMPTS = [
     {
-        'id': 'create_class',
-        'content': CREATE_CLASS_PROMPT,
-        'metadata': {
-            'action': 'create_class',
-            'description': '创建班级',
-            'keywords': '创建,新建,开设,班级'
+        "id": "create_class",
+        "content": CREATE_CLASS_PROMPT,
+        "metadata": {
+            "action": "create_class",
+            "description": "创建班级",
+            "keywords": "创建,新建,开设,班级"
         }
     },
     {
-        'id': 'delete_class',
-        'content': DELETE_CLASS_PROMPT,
-        'metadata': {
-            'action': 'delete_class',
-            'description': '删除班级',
-            'keywords': '删除,移除,班级'
+        "id": "delete_class",
+        "content": DELETE_CLASS_PROMPT,
+        "metadata": {
+            "action": "delete_class",
+            "description": "删除班级",
+            "keywords": "删除,移除,班级"
+        }
+    },
+    {
+        "id": "qa_create_class",
+        "content": """你是一个友好的助手，需要回答关于创建班级的问题。
+
+创建班级的API说明：
+1. 接口地址：POST /api/classes
+2. 请求参数：
+   - name: 班级名称（必填）
+   - subject: 科目名称（必填）
+3. 注意事项：
+   - 班级名称建议以"班"结尾
+   - 科目名称可以是任何有效的学科名称
+   - 同一个科目可以创建多个班级
+   - 班级名称在系统中必须唯一
+
+请用自然语言回答用户的问题，说明如何创建班级。""",
+        "metadata": {
+            "action": "qa",
+            "description": "回答创建班级相关问题",
+            "keywords": "如何,怎么,创建,新建,开设,班级"
+        }
+    },
+    {
+        "id": "qa_delete_class",
+        "content": """你是一个友好的助手，需要回答关于删除班级的问题。
+
+删除班级的API说明：
+1. 接口地址：DELETE /api/classes/{class_id}
+2. 注意事项：
+   - 删除班级会同时删除该班级下的所有学生信息
+   - 删除后无法恢复
+   - 需要确保班级中没有正在进行的考试
+
+请用自然语言回答用户的问题，说明如何删除班级。""",
+        "metadata": {
+            "action": "qa",
+            "description": "回答删除班级相关问题",
+            "keywords": "如何,怎么,删除,移除,班级"
         }
     }
 ] 

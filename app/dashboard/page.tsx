@@ -8,6 +8,7 @@ import { LogoutOutlined } from "@ant-design/icons";
 import { TeacherDashboard } from "./components/TeacherDashboard";
 import { StudentDashboard } from "./components/StudentDashboard";
 import { Class } from "@/app/types";
+import AIAssistant from "@/app/components/AIAssistant";
 import axiosInstance from '@/lib/axios';
 
 const { Header, Content } = AntLayout;
@@ -110,6 +111,7 @@ export default function Dashboard() {
             fetchClasses={fetchClasses}
           />
         )}
+        <AIAssistant />
       </Content>
     </AntLayout>
   );

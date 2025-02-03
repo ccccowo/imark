@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FloatButton, Drawer, Segmented } from 'antd';
 import { 
     RobotOutlined, 
@@ -10,9 +10,9 @@ import {
     DeleteOutlined,
     EditOutlined
 } from '@ant-design/icons';
-import { Bubble, Sender, Suggestion, useXChat, useXAgent, Welcome, Prompts } from '@ant-design/x';
+import { Bubble, Sender, Suggestion, Welcome, Prompts } from '@ant-design/x';
 import type { GetProp } from 'antd';
-import type { PromptsProps } from '@ant-design/x';
+import axiosInstance from '@/lib/axios';
 
 // 预设的对话示例
 const SUGGESTIONS = {
@@ -136,68 +136,114 @@ const getPromptItems = (mode: 'qa' | 'execute') => {
     return items;
 };
 
+type PromptItem = {
+    key: string;
+    icon: React.ReactNode;
+    description: string;
+    disabled: boolean;
+};
+
 export default function AIAssistant() {
     const [open, setOpen] = useState(false);
     const [mode, setMode] = useState<'qa' | 'execute'>('qa');
     const [loading, setLoading] = useState(false);
     const [content, setContent] = useState('');
+    const [messages, setMessages] = useState<Array<{
+        id: string;
+        message: string;
+        status: 'loading' | 'success' | 'error' | 'local';
+    }>>([]);
 
-    const [agent] = useXAgent({
-        request: async ({ message }, { onSuccess, onError }) => {
-            try {
-                setLoading(true);
-                const res = await fetch('/api/ai-assistant', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        prompt: message,
-                        mode,
-                    }),
-                });
+    // 使用useCallback处理请求
+    const handleRequest = useCallback(async (message: string) => {
+        // 在try块外声明loadingMessageId
+        const loadingMessageId = (Date.now() + 1).toString();
+        
+        try {
+            setLoading(true);
+            // 添加用户消息
+            setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                message,
+                status: 'local'
+            }]);
 
-                const data = await res.json();
-                if (data.error) {
-                    onError(new Error(data.error));
-                    return;
-                }
+            // 添加一个loading状态的消息
+            setMessages(prev => [...prev, {
+                id: loadingMessageId,
+                message: '正在处理...',
+                status: 'loading'
+            }]);
 
-                onSuccess(data.response);
-            } catch (error: any) {
-                console.error('请求失败:', error);
-                onError(error);
-            } finally {
-                setLoading(false);
-            }
-        },
-    });
+            // 发送请求
+            const res = await axiosInstance.post('/api/ai-assistant', {
+                prompt: message,
+                mode,
+            });
 
-    const { messages, onRequest } = useXChat({
-        agent,
-        requestPlaceholder: '正在思考中...',
-        requestFallback: '抱歉，请求失败了，请稍后重试',
-    });
-
-    const handleSend = (value: string) => {
-        onRequest(value);
-        setContent('');
-    };
-
-    const handlePromptSelect = (key: string) => {
-        const items = getPromptItems(mode);
-        const selectedItem = items.find(item => item.key === key);
-        if (selectedItem) {
-            setContent(selectedItem.description);
+            // 更新消息列表，移除loading消息并添加响应消息
+            setMessages(prev => {
+                const filteredMessages = prev.filter(msg => msg.id !== loadingMessageId);
+                return [...filteredMessages, {
+                    id: Date.now().toString(),
+                    message: res.data.error || res.data.response || '操作成功',
+                    status: res.data.error ? 'error' : 'success'
+                }];
+            });
+        } catch (error: any) {
+            console.error('请求失败:', error);
+            setMessages(prev => {
+                const filteredMessages = prev.filter(msg => msg.id !== loadingMessageId);
+                return [...filteredMessages, {
+                    id: Date.now().toString(),
+                    message: error.message || '请求失败',
+                    status: 'error'
+                }];
+            });
+        } finally {
+            setLoading(false);
         }
+    }, [mode]);
+
+    // 当模式改变时，清空消息历史
+    const handleModeChange = (value: 'qa' | 'execute') => {
+        setMode(value);
+        setMessages([]); // 清空消息
     };
+
+    const handleSend = useCallback((value: string) => {
+        handleRequest(value);
+        setContent('');
+    }, [handleRequest]);
+
+    const handlePromptSelect = useCallback((item: PromptItem | string) => {
+        if (typeof item === 'string') {
+            const items = getPromptItems(mode);
+            const selectedItem = items.find(i => i.key === item);
+            if (selectedItem) {
+                setContent(selectedItem.description);
+                // 自动聚焦输入框
+                const senderInput = document.querySelector('.x-sender-input') as HTMLTextAreaElement;
+                if (senderInput) {
+                    senderInput.focus();
+                }
+            }
+        } else {
+            setContent(item.description);
+            // 自动聚焦输入框
+            const senderInput = document.querySelector('.x-sender-input') as HTMLTextAreaElement;
+            if (senderInput) {
+                senderInput.focus();
+            }
+        }
+    }, [mode]);
 
     return (
-        <>
+        <div style={{ position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 1000 }}>
             <FloatButton
                 icon={<RobotOutlined />}
                 type="primary"
-                style={{ right: 24, bottom: 24 }}
+                style={{ right: 24, bottom: 24, zIndex: 1001 }}
                 onClick={() => setOpen(true)}
             />
             
@@ -221,48 +267,81 @@ export default function AIAssistant() {
                     </div>
                 }
                 bodyStyle={{ padding: 0 }}
+                style={{ position: 'absolute' }}
+                mask={false}
             >
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                     <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-                        {messages.length === 0 ? (
-                            <>
-                                <div style={{ padding: '20px 0' }}>
-                                    <Welcome
-                                        icon={<RobotOutlined style={{ fontSize: 28, color: '#1677ff' }} />}
-                                        title="你好，我是AI助手"
-                                        description={
-                                            <div style={{ color: '#666' }}>
-                                                <p>我可以帮你：</p>
-                                                <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
-                                                    <li>回答关于API的问题（问答模式）</li>
-                                                    <li>执行班级管理操作（执行模式）</li>
-                                                </ul>
-                                                <p>请选择合适的模式开始对话吧！</p>
-                                            </div>
-                                        }
-                                        variant="filled"
-                                        styles={{
-                                            icon: { background: '#f0f5ff', padding: 16, borderRadius: '50%' },
-                                            title: { fontSize: 20, marginTop: 16 },
-                                            description: { marginTop: 8 }
-                                        }}
-                                    />
-                                </div>
-                                <div style={{ padding: '0 20px' }}>
-                                    <Prompts
-                                        title={mode === 'qa' ? "🤔 你可能想问：" : "💡 快捷操作："}
-                                        items={getPromptItems(mode)}
-                                        vertical
-                                        onSelect={(event: React.MouseEvent<HTMLDivElement>) => {
-                                            const key = (event.currentTarget as HTMLDivElement).getAttribute('data-key');
-                                            if (key) {
-                                                handlePromptSelect(key);
+                        {messages.length === 0 && (
+                            <div style={{ padding: '20px 0' }}>
+                                <Welcome
+                                    icon={<RobotOutlined style={{ fontSize: 28, color: '#1677ff' }} />}
+                                    title="你好，我是AI助手"
+                                    description={
+                                        <div style={{ color: '#666' }}>
+                                            <p>我可以帮你：</p>
+                                            <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
+                                                <li>回答关于API的问题（问答模式）</li>
+                                                <li>执行班级管理操作（执行模式）</li>
+                                            </ul>
+                                            <p>请选择合适的模式开始对话吧！</p>
+                                        </div>
+                                    }
+                                    variant="filled"
+                                    styles={{
+                                        icon: { background: '#f0f5ff', padding: 16, borderRadius: '50%' },
+                                        title: { fontSize: 20, marginTop: 16 },
+                                        description: { marginTop: 8 }
+                                    }}
+                                />
+                            </div>
+                        )}
+                        
+                        <div style={{ 
+                            padding: '16px', 
+                            background: '#f9f9f9', 
+                            borderRadius: '8px',
+                            marginBottom: '20px'
+                        }}>
+                            <div style={{ marginBottom: 8 }}>
+                                {mode === 'qa' ? "🤔 你可能想问：" : "💡 快捷操作："}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {getPromptItems(mode).map(item => (
+                                    <div
+                                        key={item.key}
+                                        onClick={() => {
+                                            setContent(item.description);
+                                            const senderInput = document.querySelector('.x-sender-input') as HTMLTextAreaElement;
+                                            if (senderInput) {
+                                                senderInput.focus();
                                             }
                                         }}
-                                    />
-                                </div>
-                            </>
-                        ) : (
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            padding: '8px 12px',
+                                            background: '#fff',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = '#f0f0f0';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = '#fff';
+                                        }}
+                                    >
+                                        {item.icon}
+                                        <span>{item.description}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        {messages.length > 0 && (
                             <Bubble.List
                                 roles={roles}
                                 items={messages.map(({ id, message, status }) => ({
@@ -297,7 +376,7 @@ export default function AIAssistant() {
                             }}>
                                 <Segmented
                                     value={mode}
-                                    onChange={value => setMode(value as 'qa' | 'execute')}
+                                    onChange={value => handleModeChange(value as 'qa' | 'execute')}
                                     options={[
                                         {
                                             label: (
@@ -330,7 +409,7 @@ export default function AIAssistant() {
                                 />
                             </div>
                             <Sender
-                                loading={agent.isRequesting()}
+                                loading={loading}
                                 value={content}
                                 onChange={setContent}
                                 onSubmit={handleSend}
@@ -347,6 +426,6 @@ export default function AIAssistant() {
                     </div>
                 </div>
             </Drawer>
-        </>
+        </div>
     );
 }

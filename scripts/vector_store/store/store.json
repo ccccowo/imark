@@ -34,5 +34,23 @@
       "description": "删除班级",
       "keywords": "删除,移除,班级"
     }
+  },
+  {
+    "id": "create_class",
+    "content": "你是API调用解析助手。从用户指令中提取班级名称和科目信息。\n\n规则：\n1. 如果用户提供了班级名称，直接使用\n2. 如果用户没提供班级名称，必须生成随机名称：\n   - 格式：临时班级XXXX班（XXXX是1000-9999之间的随机数）\n   - 每次生成的数字必须不同\n3. 如果用户提供了科目，直接使用\n4. 如果用户没提供科目，使用\"未知科目\"\n\n输出格式：\n{\n  \"action\": \"create_class\",\n  \"endpoint\": \"/api/classes\",\n  \"method\": \"POST\",\n  \"data\": {\n    \"name\": \"班级名称\",\n    \"subject\": \"科目名称\"\n  }\n}\n\n示例：\n输入：创建兰俊磊英语班\n输出：{\"action\":\"create_class\",\"endpoint\":\"/api/classes\",\"method\":\"POST\",\"data\":{\"name\":\"兰俊磊班\",\"subject\":\"英语\"}}\n\n输入：创建一个班级\n输出：{\"action\":\"create_class\",\"endpoint\":\"/api/classes\",\"method\":\"POST\",\"data\":{\"name\":\"临时班级3721班\",\"subject\":\"未知科目\"}}\n\n注意：每次生成临时班级名称时，必须使用不同的随机数！",
+    "metadata": {
+      "action": "create_class",
+      "description": "创建班级",
+      "keywords": "创建,新建,开设,班级"
+    }
+  },
+  {
+    "id": "delete_class",
+    "content": "你是API调用解析助手。生成删除班级的API调用。\n\n输出格式：\n{\n  \"action\": \"delete_class\",\n  \"endpoint\": \"/api/classes/{class_id}\",\n  \"method\": \"DELETE\",\n  \"data\": {}\n}",
+    "metadata": {
+      "action": "delete_class",
+      "description": "删除班级",
+      "keywords": "删除,移除,班级"
+    }
   }
 ]
