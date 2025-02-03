@@ -7,6 +7,8 @@ import sys
 import io
 from prompts import QA_SYSTEM_PROMPT, EXECUTE_SYSTEM_PROMPT
 import traceback
+from dotenv import load_dotenv
+load_dotenv()
 
 # 设置标准输出编码
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -126,36 +128,39 @@ def extract_json(content: str) -> str:
         print("尝试处理的内容:", repr(json_str))
         raise ValueError(f"无效的JSON格式: {e}")
 
-def query_llama(prompt: str, mode: str = "qa") -> str:
+def handle_message(prompt: str, mode: str = "qa") -> str:
+    docs = load_docs()
+    docs = ' '.join(docs.split())
+    
+    if mode == "qa":
+        messages = [
+            {
+                "role": "system",
+                "content": QA_SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": f"这是文档内容：\n{docs}\n\n请回答问题：{prompt}"
+            }
+        ]
+    else:  # execute mode
+        messages = [
+            {
+                "role": "system",
+                "content": EXECUTE_SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    print("\n=== 发送到AI的消息 ===")
+    print(json.dumps(messages, ensure_ascii=False, indent=2))
+    return messages
+
+def query_deepseek(prompt: str, mode: str = "qa") -> str:
     try:
-        docs = load_docs()
-        docs = ' '.join(docs.split())
-        
-        if mode == "qa":
-            messages = [
-                {
-                    "role": "system",
-                    "content": QA_SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": f"这是文档内容：\n{docs}\n\n请回答问题：{prompt}"
-                }
-            ]
-        else:  # execute mode
-            messages = [
-                {
-                    "role": "system",
-                    "content": EXECUTE_SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        
-        print("\n=== 发送到AI的消息 ===")
-        print(json.dumps(messages, ensure_ascii=False, indent=2))
+        messages = handle_message(prompt, mode)
         
         response = requests.post(
             "http://localhost:11434/api/chat",
@@ -231,6 +236,117 @@ def query_llama(prompt: str, mode: str = "qa") -> str:
             "error": f"系统错误: {str(e)}"
         }, ensure_ascii=False)
 
+def query_qwen(prompt: str, mode: str = "qa") -> str:
+    try:
+        # 首先验证 API 密钥
+        api_key = os.getenv('SILICON_API_KEY')
+        if not api_key:
+            return json.dumps({
+                "error": "未设置 SILICON_API_KEY 环境变量"
+            }, ensure_ascii=False)
+            
+        messages = handle_message(prompt, mode)
+        url = "https://api.siliconflow.cn/v1/chat/completions"
+
+        payload = {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "messages": messages,
+            "stream": False,
+            "max_tokens": 256,
+            "temperature": 0.01,
+            "top_p": 0.1,
+            "frequency_penalty": 0,
+            "presence_penalty": 0
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+
+        print("\n=== API密钥验证 ===")
+        print(f"API密钥长度: {len(api_key)}")
+        print(f"Authorization: Bearer {api_key[:5]}...{api_key[-5:]}")
+
+        response = requests.request("POST", url, json=payload, headers=headers)
+        
+        print("\n=== 收到响应 ===")
+        print(f"Status Code: {response.status_code}")
+        print(f"Response Headers: {dict(response.headers)}")
+        print(f"Response Text: {response.text}")
+        
+        if response.status_code == 200:
+            content = response.json()["choices"][0]["message"]["content"].strip()
+            print("\n=== AI响应内容 ===")
+            print(content)
+            
+            if mode == "execute":
+                try:
+                    # 提取和解析 JSON
+                    json_str = extract_json(content)
+                    result = json.loads(json_str)
+                    
+                    # 验证字段
+                    required_fields = ["action", "endpoint", "method", "data"]
+                    required_data_fields = ["name", "subject"]
+                    
+                    if not all(key in result for key in required_fields):
+                        # 尝试构建完整的响应格式
+                        if "data" in result and "name" in result["data"] and "subject" in result["data"]:
+                            result = {
+                                "action": "create_class",
+                                "endpoint": "/api/classes",
+                                "method": "POST",
+                                "data": {
+                                    "name": result["data"]["name"],
+                                    "subject": result["data"]["subject"]
+                                }
+                            }
+                        else:
+                            raise ValueError("缺少必要的字段")
+                            
+                    if not all(key in result["data"] for key in required_data_fields):
+                        raise ValueError("data中缺少必要的字段")
+                    
+                    # 确保字段值正确
+                    result["action"] = "create_class"
+                    result["endpoint"] = "/api/classes"
+                    result["method"] = "POST"
+                    
+                    # 确保班级名称以"班"结尾
+                    if not result["data"]["name"].endswith("班"):
+                        result["data"]["name"] += "班"
+                    
+                    print("\n=== 最终结果 ===")
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                    return json.dumps(result, ensure_ascii=False)
+                    
+                except Exception as e:
+                    print(f"\n=== 处理错误 ===")
+                    print(f"错误类型: {type(e).__name__}")
+                    print(f"错误信息: {str(e)}")
+                    print(f"堆栈跟踪:\n{traceback.format_exc()}")
+                    return json.dumps({
+                        "error": f"处理失败: {str(e)}",
+                        "raw_response": content
+                    }, ensure_ascii=False)
+            else:
+                return json.dumps({
+                    "response": content
+                }, ensure_ascii=False)
+        else:
+            return json.dumps({
+                "error": f"请求失败 ({response.status_code}): {response.text}"
+            }, ensure_ascii=False)
+            
+    except Exception as e:
+        print(f"\n=== 系统错误 ===")
+        print(f"错误类型: {type(e).__name__}")
+        print(f"错误信息: {str(e)}")
+        print(f"堆栈跟踪:\n{traceback.format_exc()}")
+        return json.dumps({
+            "error": f"系统错误: {str(e)}"
+        }, ensure_ascii=False)
+
 # 修改main部分的打印逻辑
 if __name__ == "__main__":
     if len(sys.argv) > 2:
@@ -239,10 +355,13 @@ if __name__ == "__main__":
         print(f"\n=== 接收到的参数 ===")
         print(f"模式: {mode}")
         print(f"提示: {prompt}")
-        result = query_llama(prompt, mode)
+        # result = query_deepseek(prompt, mode)
+        result = query_qwen(prompt, mode)
         print("\n=== 最终输出 ===")
         print(result)
     else:
         print(json.dumps({
             "error": "缺少必要的参数"
         }, ensure_ascii=False))
+
+load_dotenv()
