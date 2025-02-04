@@ -155,7 +155,7 @@ export async function POST(
                                 });
                             } catch (error) {
                                 console.error('Crop failed:', error);
-                                throw new Error(`处理题目${question.orderNum}的图片时出错: ${error.message}`);
+                                throw new Error(`处理题目${question.orderNum}的图片时出错: ${error instanceof Error ? error.message : '未知错误'}`);
                             }
                         }
 
