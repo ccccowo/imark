@@ -38,6 +38,7 @@ interface AnswerQuestion {
   examineeId: string;
   questionId: string;
   answerQuestionImage: string;
+  answerQuestionImageCOS?: string;
   aiScore?: number;
   teacherScore?: number;
   aiComment?: string;
@@ -67,6 +68,10 @@ export default function GradePage({ params }: { params: { examId: string } }) {
   const [viewMode, setViewMode] = useState<"student" | "question">("student");
   const [showGuide, setShowGuide] = useState(false);
   const [examInfo, setExamInfo] = useState<ExamInfo | null>(null);
+  const [processingImages, setProcessingImages] = useState(false);
+  const [processedCount, setProcessedCount] = useState(0);
+  const [totalToProcess, setTotalToProcess] = useState(0);
+  const [aiGrading, setAiGrading] = useState(false);
 
   // 获取考试信息
   const fetchExamInfo = async () => {
@@ -366,6 +371,55 @@ export default function GradePage({ params }: { params: { examId: string } }) {
     }
   };
 
+  // 预处理未优化的图片
+  const preprocessImages = async (answers: AnswerQuestion[]) => {
+    const unprocessedAnswers = answers.filter(answer => !answer.answerQuestionImageCOS);
+
+    if (unprocessedAnswers.length > 0) {
+      setProcessingImages(true);
+      setTotalToProcess(unprocessedAnswers.length);
+      setProcessedCount(0);
+
+      // 顺序处理每个答案
+      for (const answer of unprocessedAnswers) {
+        try {
+          const formData = new FormData();
+          const response = await axiosInstance.get(answer.answerQuestionImage, {
+            responseType: 'blob'
+          });
+          
+          const originalExt = answer.answerQuestionImage.split('.').pop() || 'jpg';
+          const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.${originalExt}`;
+          
+          formData.append('file', new Blob([response.data], { type: `image/${originalExt}` }), fileName);
+          formData.append('answerId', answer.id);
+
+          await axiosInstance.post(
+            `/api/exams/${params.examId}/process-image`,
+            formData,
+            {
+              headers: { 'Content-Type': 'multipart/form-data' }
+            }
+          );
+
+          setProcessedCount(prev => prev + 1);
+        } catch (error) {
+          console.error(`处理答题图片失败 ID: ${answer.id}`, error);
+        }
+      }
+      
+      setProcessingImages(false);
+      await fetchAnswers(); // 刷新列表
+    }
+  };
+
+  // 在获取答题列表后启动预处理
+  useEffect(() => {
+    if (answers.length > 0) {
+      preprocessImages(answers);
+    }
+  }, [answers.length]);
+
   return (
     <div className="p-6 space-y-4">
       {/* 顶部导航和考试信息 */}
@@ -486,6 +540,16 @@ export default function GradePage({ params }: { params: { examId: string } }) {
           </div>
         )}
       </Card>
+
+      {processingImages && (
+        <Alert
+          message="正在优化答题图片"
+          description={`已处理 ${processedCount}/${totalToProcess} 张图片`}
+          type="info"
+          showIcon
+          className="mb-4"
+        />
+      )}
 
       <div className="flex space-x-4">
         {/* 左侧答题列表 */}
@@ -770,61 +834,46 @@ export default function GradePage({ params }: { params: { examId: string } }) {
                     onClick={async () => {
                       if (currentAnswer) {
                         try {
-                          // 先将图片上传到腾讯云
-                          const formData = new FormData();
-                          const response = await axiosInstance.get(currentAnswer.answerQuestionImage, {
-                            responseType: 'blob'
-                          });
+                          setAiGrading(true);
+                          message.loading({ content: 'AI 批改中...', key: 'aiGrading' });
                           
-                          const originalExt = currentAnswer.answerQuestionImage.split('.').pop() || 'jpg';
-                          const timestamp = new Date().getTime();
-                          const random = Math.floor(Math.random() * 1000);
-                          const fileName = `${timestamp}_${random}.${originalExt}`;
+                          // 优先使用已处理的COS图片
+                          const imageUrl = currentAnswer.answerQuestionImageCOS || ''
                           
-                          formData.append('file', new Blob([response.data], { type: `image/${originalExt}` }), fileName);
-
-                          // 上传图片
-                          const { data: uploadData } = await axiosInstance.post(
-                            '/api/upload',
-                            formData,
-                            {
-                              headers: {
-                                'Content-Type': 'multipart/form-data'
-                              }
-                            }
-                          );
-
                           // 调用 AI 批改接口
                           const { data: aiResult } = await axiosInstance.post(
                             `/api/exams/${params.examId}/grade/ai`,
                             {
                               answerId: currentAnswer.id,
-                              imageUrl: uploadData.url,
+                              imageUrl,
                               score: currentAnswer.question.score,
                               correctAnswer: currentAnswer.question.correctAnswer
                             }
                           );
 
-                          // 更新当前答题状态
                           if (aiResult.success) {
                             const newAnswer = { ...currentAnswer };
                             newAnswer.aiScore = aiResult.data.aiScore;
                             newAnswer.aiComment = aiResult.data.aiComment;
                             newAnswer.aiConfidence = aiResult.data.aiConfidence;
                             setCurrentAnswer(newAnswer);
-                            message.success('AI 批改完成');
-                            await fetchAnswers(); // 刷新列表
+                            message.success({ content: 'AI 批改完成', key: 'aiGrading' });
+                            await fetchAnswers();
                           }
                         } catch (error) {
                           console.error('AI 批改失败:', error);
-                          message.error('AI 批改失败');
+                          message.error({ content: 'AI 批改失败', key: 'aiGrading' });
+                        } finally {
+                          setAiGrading(false);
                         }
                       }
                     }}
                     icon={<RobotOutlined />}
+                    loading={aiGrading}
+                    disabled={aiGrading || !currentAnswer}
                     className="flex-1"
                   >
-                    AI 批改
+                    {aiGrading ? '批改中...' : 'AI 批改'}
                   </Button>
                   <Button
                     onClick={() => {

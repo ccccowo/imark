@@ -98,7 +98,7 @@ model AnswerQuestion {
   questionId     String
   examineeId     String
   answerQuestionImage String
-  
+  answerQuestionImageCOS String?
   fullScore      Float?
   teacherScore   Float?
   aiScore        Float?

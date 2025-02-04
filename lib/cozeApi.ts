@@ -52,7 +52,7 @@ export async function callCozeApi(imageUrl: string, score: number, correctAnswer
     }
 
     // 查找类型为 "answer" 的消息
-    const answerMessage = data.messages?.find(msg => msg.type === 'answer');
+    const answerMessage = data.messages?.find((msg: any) => msg.type === 'answer');
     if (!answerMessage?.content) {
       throw new Error('未找到 AI 答案');
     }

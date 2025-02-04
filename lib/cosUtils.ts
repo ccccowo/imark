@@ -10,27 +10,35 @@ const Bucket = process.env.TENCENT_COS_BUCKET!;
 const Region = process.env.TENCENT_COS_REGION!;
 
 export async function uploadToCOS(file: Buffer, fileName: string): Promise<string> {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const mimeType = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'webp': 'image/webp'
+    }[ext || 'jpg'] || 'image/jpeg';
+
     return new Promise((resolve, reject) => {
         cos.putObject({
             Bucket,
             Region,
             Key: `imark/${fileName}`,
             Body: file,
-            ContentType: 'image/jpeg',
-            Headers: {
-                'Content-Disposition': 'inline',
-            },
+            ContentType: mimeType,
+            ACL: 'public-read',
+            ContentDisposition: 'inline',
         }, (err, data) => {
             if (err) {
                 reject(err);
                 return;
             }
-            // 返回公开访问链接
-            resolve(`https://${Bucket}.cos.${Region}.myqcloud.com/imark/${fileName}`);
+            const url = `https://${Bucket}.cos.${Region}.myqcloud.com/imark/${fileName}`;
+            console.log("@@@@@@cosUrl", url);
+            resolve(url);
         });
     });
 }
-
 // 生成唯一的文件名
 export function generateUniqueFileName(originalName: string): string {
     const timestamp = new Date().getTime();
