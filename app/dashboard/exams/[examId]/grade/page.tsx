@@ -532,6 +532,34 @@ export default function GradePage({ params }: { params: { examId: string } }) {
                                 </div>
                             </div>
 
+                            {/* 标准答案展示 */}
+                            {currentAnswer.question.correctAnswer && (
+                                <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden bg-white">
+                                    <div className="bg-gray-50 px-4 py-2 flex items-center justify-between border-b border-gray-200">
+                                        <div className="flex items-center space-x-2">
+                                            <span className="text-gray-700 font-medium">📝 标准答案</span>
+                                        </div>
+                                        <Tag color="blue" className="text-xs">满分 {currentAnswer.question.score} 分</Tag>
+                                    </div>
+                                    <div className="p-3 bg-white">
+                                        <div className="text-gray-700 text-base">
+                                            {currentAnswer.question.type === 'SINGLE_CHOICE' && (
+                                                <span>选项 {currentAnswer.question.correctAnswer}</span>
+                                            )}
+                                            {currentAnswer.question.type === 'MULTIPLE_CHOICE' && (
+                                                <span>选项 {currentAnswer.question.correctAnswer.split('').join('、')}</span>
+                                            )}
+                                            {currentAnswer.question.type === 'TRUE_FALSE' && (
+                                                <span>{currentAnswer.question.correctAnswer === 'T' ? '正确' : '错误'}</span>
+                                            )}
+                                            {!['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'].includes(currentAnswer.question.type) && (
+                                                currentAnswer.question.correctAnswer
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* 答题图片 */}
                             <div className="mb-4 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
                                 <Image

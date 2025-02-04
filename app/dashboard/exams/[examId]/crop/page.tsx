@@ -157,12 +157,40 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
 
     const handleBatchSettingsConfirm = async (settings: QuestionSettings[]) => {
         try {
+            // 创建题号到答案的映射
+            const answerMap = new Map();
+            settings.forEach(setting => {
+                if (setting.correctAnswer) {
+                    // 使用空格分隔答案字符串
+                    const answers = setting.correctAnswer.trim().split(/\s+/);
+                    // 为范围内的每个题号分配对应的答案
+                    for (let i = 0; i < answers.length; i++) {
+                        const questionNum = setting.startNum + i;
+                        answerMap.set(questionNum, answers[i]);
+                        console.log(`Setting answer for question ${questionNum}: ${answers[i]}`);
+                    }
+                }
+            });
+
             // 处理设置并计算总分
             const questions = crops.map((crop, index) => {
                 const orderNum = index + 1;
                 const setting = settings.find(
                     s => orderNum >= s.startNum && orderNum <= s.endNum
                 );
+                
+                // 检查 setting 是否存在
+                if (!setting) {
+                    throw new Error(`题号 ${orderNum} 没有找到对应的设置`);
+                }
+                
+                // 从 answerMap 中获取对应题号的答案
+                const correctAnswer = answerMap.get(orderNum);
+                if (!correctAnswer) {
+                    throw new Error(`题号 ${orderNum} 没有找到对应的答案`);
+                }
+                
+                console.log(`Building question ${orderNum} with answer: ${correctAnswer}`);
                 
                 return {
                     orderNum,
@@ -172,11 +200,13 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
                         width: crop.width,
                         height: crop.height
                     },
-                    score: setting!.score,
-                    type: setting!.type,
-                    correctAnswer: setting!.correctAnswer,
+                    score: setting.score,
+                    type: setting.type,
+                    correctAnswer
                 };
             });
+
+            console.log('Final questions:', questions);
 
             const fullScore = questions.reduce((sum, q) => sum + q.score, 0);
 
@@ -196,7 +226,7 @@ export default function PaperCropPage({ params }: { params: { examId: string } }
             }
         } catch (error) {
             console.error('保存题目失败:', error);
-            message.error('保存题目失败');
+            message.error(error instanceof Error ? error.message : '保存题目失败');
         }
     };
 

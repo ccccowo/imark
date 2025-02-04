@@ -164,12 +164,15 @@ export default function BatchSettingsModal({
         let answerArray: string[] = [];
         
         if (group.type === 'SINGLE_CHOICE') {
-          answerArray = answers.toUpperCase().split('');
+          // 修改：先转大写，去除空格，然后再拆分成数组
+          answerArray = answers.toUpperCase().trim().split(/\s+/);
           // 验证单选题答案格式
-          if (!answerArray.every(ans => /^[A-D]$/.test(ans))) {
+          if (!answerArray.every(ans => /^[A-D]$/.test(ans.trim()))) {
             message.error('单选题答案必须是A-D');
             return;
           }
+          // 打印日志检查答案数组
+          console.log('Single choice answers:', answerArray);
         } else if (group.type === 'MULTIPLE_CHOICE') {
           // 多选题答案处理和验证
           answerArray = answers.trim().split(/\s+/);
@@ -226,18 +229,37 @@ export default function BatchSettingsModal({
 
       // 如果所有验证都通过，更新设置
       const newSettings = [...settings];
+      
+      // 创建题号到答案的映射
+      const answerMap = new Map();
+      
       questionGroups.forEach(group => {
         const answers = values[group.type];
+        console.log(`Processing ${group.type} answers:`, answers);
+        
+        // 先建立题号和答案的映射关系
         group.questions.forEach((q, index) => {
-          const settingIndex = newSettings.findIndex(s => 
-            q.orderNum >= s.startNum && q.orderNum <= s.endNum
-          );
-          if (settingIndex !== -1) {
-            newSettings[settingIndex].correctAnswer = answers[index];
-          }
+          answerMap.set(q.orderNum, answers[index]);
+          console.log(`Mapping question ${q.orderNum} to answer ${answers[index]}`);
         });
       });
+      
+      // 然后更新每个设置的答案
+      newSettings.forEach((setting, settingIndex) => {
+        // 获取这个设置范围内的所有答案
+        const answers = [];
+        for (let i = 0; i < setting.endNum - setting.startNum + 1; i++) {
+          const questionNum = setting.startNum + i;
+          const answer = answerMap.get(questionNum);
+          answers.push(answer);
+        }
+        
+        // 将答案数组合并为一个字符串，用空格分隔
+        setting.correctAnswer = answers.join(' ');
+        console.log(`Setting answers for range ${setting.startNum}-${setting.endNum}: ${setting.correctAnswer}`);
+      });
 
+      console.log('Final settings:', newSettings);
       setSettings(newSettings);
       onConfirm(newSettings);
     });
@@ -283,7 +305,7 @@ export default function BatchSettingsModal({
             rules={[{ required: true }]}
             extra={
               group.type === 'SINGLE_CHOICE' ? 
-                `请输入${group.questions.length}个选项(A-D)` :
+                `请输入${group.questions.length}个选项(A-D)，用空格分隔` :
               group.type === 'MULTIPLE_CHOICE' ? 
                 `请输入${group.questions.length}组选项，用空格分隔` :
               group.type === 'TRUE_FALSE' ? 
@@ -292,9 +314,9 @@ export default function BatchSettingsModal({
           >
             <Input.TextArea 
               placeholder={
-                group.type === 'SINGLE_CHOICE' ? 'ABCD' :
+                group.type === 'SINGLE_CHOICE' ? 'C A B D' :
                 group.type === 'MULTIPLE_CHOICE' ? 'AB ABC CD' :
-                group.type === 'TRUE_FALSE' ? 'TTFF' : ''
+                group.type === 'TRUE_FALSE' ? 'T F T F' : ''
               }
             />
           </Form.Item>

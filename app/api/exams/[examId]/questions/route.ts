@@ -60,7 +60,8 @@ export async function POST(
                     orderNum: question.orderNum,
                     coordinates: JSON.stringify(question.coordinates),
                     score: question.score,
-                    type: question.type || 'SHORT_ANSWER'
+                    type: question.type || 'SHORT_ANSWER',
+                    correctAnswer: question.correctAnswer || null
                 }))
             });
 
