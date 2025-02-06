@@ -466,9 +466,7 @@ export default function GradePage({ params }: { params: { examId: string } }) {
               所有答题已完成批改！您可以：
               <Button
                 type="link"
-                onClick={() =>
-                  router.push(`/dashboard/exams/${params.examId}/results`)
-                }
+                onClick={() => router.push(`/dashboard/exams/${params.examId}/results`)}
               >
                 点击此处查看成绩
               </Button>

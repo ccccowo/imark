@@ -233,7 +233,6 @@ export function StudentDashboard({ session, classes, loading, fetchClasses }: St
                       description={
                         <Space direction="vertical" size="small">
                           <Text type="secondary">科目：{cls.subject}</Text>
-                          <Text type="secondary">加入时间：{new Date(cls.joinTime).toLocaleDateString()}</Text>
                         </Space>
                       }
                     />
@@ -342,12 +341,11 @@ export function StudentDashboard({ session, classes, loading, fetchClasses }: St
                 prefix={<TeamOutlined className="text-gray-400" />}
                 placeholder="请输入班级编号"
                 value={classCode}
-                onChange={(e) => setClassCode(e.target.value.toUpperCase())}
+                onChange={(e) => setClassCode(e.target.value)}
                 required
-                maxLength={8}
               />
               <div className="mt-2 text-gray-500 text-sm">
-                请向老师获取班级编号，编号由字母和数字组成
+                请向老师获取班级编号
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">

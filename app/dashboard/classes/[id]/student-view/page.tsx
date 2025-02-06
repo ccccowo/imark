@@ -1,3 +1,4 @@
+// 该界面是学生查看自己班级考试列表的界面
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -27,10 +28,11 @@ interface Exam {
     name: string;
     status: string;
     createdAt: string;
-    examinee?: {
+    examinees?: {
         id: string;
+        studentId: string;
         totalScore?: number;
-    };
+    }[];
 }
 
 export default function StudentClassView({ params }: { params: { id: string } }) {
@@ -39,6 +41,7 @@ export default function StudentClassView({ params }: { params: { id: string } })
     const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
     const [exams, setExams] = useState<Exam[]>([]);
     const [loading, setLoading] = useState(true);
+    const [studentId, setStudentId] = useState<string>('');
 
     // 获取班级信息
     const fetchClassInfo = async () => {
@@ -55,8 +58,19 @@ export default function StudentClassView({ params }: { params: { id: string } })
     const fetchExams = async () => {
         try {
             setLoading(true);
+            // 先获取学生信息
+            const profileResponse = await axiosInstance.get('/api/students/profile');
+            const studentId = profileResponse.data.studentId;
+            
+            // 获取并过滤考试
             const response = await axiosInstance.get(`/api/classes/${params.id}/exams`);
-            setExams(response.data || []);
+            const studentExams = response.data.filter((exam: Exam) => 
+                exam.examinees?.some(examinee => 
+                    examinee.studentId === studentId
+                )
+            );
+            
+            setExams(studentExams || []);
         } catch (error) {
             console.error('获取考试列表失败:', error);
             message.error('获取考试列表失败');
@@ -69,6 +83,14 @@ export default function StudentClassView({ params }: { params: { id: string } })
         fetchClassInfo();
         fetchExams();
     }, [params.id]);
+
+    useEffect(() => {
+        const fetchStudentId = async () => {
+            const response = await axiosInstance.get('/api/students/profile');
+            setStudentId(response.data.studentId);
+        };
+        fetchStudentId();
+    }, []);
 
     // 获取考试状态标签
     const getExamStatusTag = (status: string, score?: number, fullScore?: number) => {
@@ -84,12 +106,12 @@ export default function StudentClassView({ params }: { params: { id: string } })
     };
 
     // 查看考试详情
-    const handleViewExamDetail = (examId: string, examineeId: string) => {
-        if (!examineeId) {
-            message.error('未找到你的考试记录');
+    const handleViewExamDetail = (examId: string) => {
+        if (!studentId) {  // 直接使用状态中的 studentId
+            message.error('未找到学生信息');
             return;
         }
-        router.push(`/dashboard/exams/${examId}/results/${examineeId}/detail`);
+        router.push(`/dashboard/exams/${examId}/student/${studentId}`);
     };
 
     // 退出班级
@@ -182,21 +204,16 @@ export default function StudentClassView({ params }: { params: { id: string } })
                                 dataSource={exams}
                                 renderItem={(exam) => (
                                     <List.Item
-                                        actions={
-                                            exam.status === 'COMPLETED' 
-                                            ? [
-                                                <Button
-                                                    key="view"
-                                                    type="link"
-                                                    icon={<EyeOutlined />}
-                                                    onClick={() => exam.examinee?.id && handleViewExamDetail(exam.id, exam.examinee.id)}
-                                                    disabled={!exam.examinee?.id}
-                                                >
-                                                    查看详情
-                                                </Button>
-                                            ] 
-                                            : undefined
-                                        }
+                                        actions={[
+                                            <Button
+                                                key="view"
+                                                type="link"
+                                                icon={<EyeOutlined />}
+                                                onClick={() => handleViewExamDetail(exam.id)}
+                                            >
+                                                查看批改详情
+                                            </Button>
+                                        ]}
                                     >
                                         <Row className="w-full" align="middle" justify="space-between">
                                             <Col>
@@ -205,11 +222,14 @@ export default function StudentClassView({ params }: { params: { id: string } })
                                                     <Tag color={exam.status === 'COMPLETED' ? 'green' : 'blue'}>
                                                         {exam.status === 'COMPLETED' ? '已完成' : '进行中'}
                                                     </Tag>
-                                                    {exam.examinee?.totalScore !== undefined && (
-                                                        <Tag color={exam.examinee.totalScore >= 60 ? 'success' : 'error'}>
-                                                            {exam.examinee.totalScore}分
-                                                        </Tag>
-                                                    )}
+                                                    {(() => {
+                                                        const examinee = exam.examinees?.find(e => e.studentId === studentId);
+                                                        return examinee?.totalScore !== undefined && (
+                                                            <Tag color={examinee.totalScore >= 60 ? 'success' : 'error'}>
+                                                                {examinee.totalScore}分
+                                                            </Tag>
+                                                        );
+                                                    })()}
                                                 </Space>
                                             </Col>
                                             <Col>

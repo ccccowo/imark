@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Table, Card, Tag, Button, Space, message, Statistic, Row, Col, Alert } from 'antd';
-import { ArrowLeftOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { Card, Table, Tag, Typography, Space, Button, Row, Col, Statistic, Progress } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import axiosInstance from '@/lib/axios';
 
+const { Title } = Typography;
+
 interface ExamResult {
     id: string;
-    studentId: string;
-    score: number;
-    student: {
+    totalScore: number;
+    examinee: {
         name: string;
         studentId: string;
     };
@@ -20,261 +21,163 @@ interface ExamInfo {
     id: string;
     name: string;
     fullScore: number;
-    status: 'NOT_READY' | 'GRADING' | 'COMPLETED';
+    status: string;
 }
 
-export default function ResultsPage({ params }: { params: { examId: string } }) {
+export default function ExamResultsPage({ params }: { params: { examId: string } }) {
     const router = useRouter();
+    const [loading, setLoading] = useState(true);
     const [results, setResults] = useState<ExamResult[]>([]);
     const [examInfo, setExamInfo] = useState<ExamInfo | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [stats, setStats] = useState({
-        avgScore: 0,
-        maxScore: 0,
-        minScore: 0,
-        passCount: 0,
-        totalCount: 0
-    });
 
-    // 获取考试信息
-    const fetchExamInfo = async () => {
-        try {
-            const response = await axiosInstance.get(`/api/exams/${params.examId}`);
-            setExamInfo(response.data);
-        } catch (error) {
-            console.error('获取考试信息失败:', error);
-            message.error('获取考试信息失败');
-        }
-    };
-
-    // 获取成绩数据
-    const fetchResults = async () => {
-        try {
-            setLoading(true);
-            const response = await axiosInstance.get(`/api/exams/${params.examId}/results`);
-            console.log('成绩数据:', response.data); // 添加调试日志
-            
-            const results = response.data.results;
-            if (!Array.isArray(results)) {
-                console.error('返回的成绩数据格式不正确:', results);
-                message.error('成绩数据格式不正确');
-                return;
-            }
-
-            setResults(results);
-            
-            // 改进统计数据计算
-            if (results.length > 0) {
-                const validScores = results
-                    .map((r: ExamResult) => r.score)
-                    .filter((score: number) => score !== null && !isNaN(score));
-
-                if (validScores.length > 0) {
-                    const total = validScores.reduce((a: number, b: number) => a + b, 0);
-                    const passCount = validScores.filter((s: number) => s >= 60).length;
-                    
-                    setStats({
-                        avgScore: Number((total / validScores.length).toFixed(1)),
-                        maxScore: Math.max(...validScores),
-                        minScore: Math.min(...validScores),
-                        passCount: passCount,
-                        totalCount: results.length
-                    });
-                } else {
-                    // 如果没有有效成绩
-                    setStats({
-                        avgScore: 0,
-                        maxScore: 0,
-                        minScore: 0,
-                        passCount: 0,
-                        totalCount: results.length
-                    });
-                }
-            } else {
-                // 如果没有任何结果
-                setStats({
-                    avgScore: 0,
-                    maxScore: 0,
-                    minScore: 0,
-                    passCount: 0,
-                    totalCount: 0
-                });
-            }
-        } catch (error) {
-            console.error('获取成绩数据失败:', error);
-            message.error('获取成绩数据失败');
-        } finally {
-            setLoading(false);
-        }
-    };
-
+    // 获取考试信息和成绩
     useEffect(() => {
-        fetchExamInfo();
-        fetchResults();
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const [examResponse, resultsResponse] = await Promise.all([
+                    axiosInstance.get(`/api/exams/${params.examId}`),
+                    axiosInstance.get(`/api/exams/${params.examId}/results`)
+                ]);
+                
+                setExamInfo(examResponse.data);
+                setResults(Array.isArray(resultsResponse.data) ? resultsResponse.data : []);
+            } catch (error) {
+                console.error('获取数据失败:', error);
+                setResults([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchData();
     }, [params.examId]);
 
-    // 导出成绩
-    const handleExport = async () => {
-        try {
-            const response = await axiosInstance.get(`/api/exams/${params.examId}/results/export`, {
-                responseType: 'blob'
-            });
-            
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `${examInfo?.name || '考试'}_成绩表.xlsx`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-        } catch (error) {
-            console.error('导出失败:', error);
-            message.error('导出失败');
-        }
+    // 计算统计数据
+    const statistics = {
+        avgScore: results.length ? 
+            (results.reduce((sum, r) => sum + (r.totalScore || 0), 0) / results.length).toFixed(1) : '0',
+        passRate: results.length ? 
+            (results.filter(r => (r.totalScore || 0) >= 60).length / results.length * 100).toFixed(1) : '0',
+        maxScore: results.length ? 
+            Math.max(...results.map(r => r.totalScore || 0)) : 0,
+        minScore: results.length ? 
+            Math.min(...results.map(r => r.totalScore || 0)) : 0
     };
 
     const columns = [
         {
             title: '学号',
-            dataIndex: ['student', 'studentId'],
+            dataIndex: ['examinee', 'studentId'],
             key: 'studentId',
-            width: 120,
-            render: (text: string) => text || '暂无'
         },
         {
             title: '姓名',
-            dataIndex: ['student', 'name'],
+            dataIndex: ['examinee', 'name'],
             key: 'name',
-            width: 100,
-            render: (text: string) => text || '暂无'
         },
         {
-            title: '成绩',
-            dataIndex: 'score',
-            key: 'score',
-            width: 100,
-            sorter: (a: ExamResult, b: ExamResult) => (a.score || 0) - (b.score || 0),
+            title: '得分',
+            dataIndex: 'totalScore',
+            key: 'totalScore',
+            sorter: (a: ExamResult, b: ExamResult) => a.totalScore - b.totalScore,
             render: (score: number) => (
-                <Tag color={score >= 60 ? 'success' : 'error'} className="px-2">
-                    {score?.toFixed(1) || 0} 分
+                <Tag color={score >= 60 ? 'success' : 'error'}>
+                    {score}分
                 </Tag>
-            )
+            ),
         },
         {
             title: '操作',
             key: 'action',
-            width: 120,
-            render: (_: unknown, record: ExamResult) => (
-                <Button
-                    type="link"
-                    onClick={() => router.push(`/dashboard/exams/${params.examId}/results/${record.id}`)}
-                    icon={<EyeOutlined />}
+            render: (_:any, record: ExamResult) => (
+                <Button 
+                    type="link" 
+                    onClick={() => router.push(`/dashboard/exams/${params.examId}/student/${record.examinee.studentId}`)}
                 >
                     查看详情
                 </Button>
-            )
-        }
+            ),
+        },
     ];
 
     return (
-        <div className="p-6 space-y-4">
-            {/* 顶部导航和考试信息 */}
-            <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-4">
+        <div className="p-6">
+            <Space direction="vertical" size="large" className="w-full">
+                {/* 顶部导航 */}
+                <Space className="mb-4">
                     <Button 
                         icon={<ArrowLeftOutlined />} 
                         onClick={() => router.back()}
                     >
                         返回
                     </Button>
-                    <span className="text-xl font-bold">{examInfo?.name || '加载中...'}</span>
-                    <Tag color="purple" className="text-base px-2">
-                        总分：{examInfo?.fullScore || '--'} 分
-                    </Tag>
-                </div>
-                <Button 
-                    type="primary" 
-                    icon={<DownloadOutlined />}
-                    onClick={handleExport}
-                >
-                    导出成绩
-                </Button>
-            </div>
+                    <Title level={4} style={{ margin: 0 }}>
+                        {examInfo?.name} - 成绩统计
+                    </Title>
+                </Space>
 
-            {/* 统计信息 */}
-            <Card className="shadow-md">
+                {/* 统计卡片 */}
                 <Row gutter={16}>
-                    <Col span={4}>
-                        <Statistic
-                            title="平均分"
-                            value={stats.avgScore || 0}
-                            suffix="分"
-                            precision={1}
-                            valueStyle={{ color: '#1890ff' }}
-                        />
+                    <Col span={6}>
+                        <Card>
+                            <Statistic 
+                                title="平均分" 
+                                value={statistics.avgScore} 
+                                suffix="分"
+                                precision={1}
+                            />
+                        </Card>
                     </Col>
-                    <Col span={4}>
-                        <Statistic
-                            title="最高分"
-                            value={stats.maxScore || 0}
-                            suffix="分"
-                            precision={1}
-                            valueStyle={{ color: '#3f8600' }}
-                        />
+                    <Col span={6}>
+                        <Card>
+                            <Statistic 
+                                title="及格率" 
+                                value={statistics.passRate} 
+                                suffix="%" 
+                                precision={1}
+                            />
+                            <Progress 
+                                percent={Number(statistics.passRate)} 
+                                size="small" 
+                                status={Number(statistics.passRate) >= 60 ? 'success' : 'exception'}
+                            />
+                        </Card>
                     </Col>
-                    <Col span={4}>
-                        <Statistic
-                            title="最低分"
-                            value={stats.minScore || 0}
-                            suffix="分"
-                            precision={1}
-                            valueStyle={{ color: stats.minScore < 60 ? '#cf1322' : '#3f8600' }}
-                        />
+                    <Col span={6}>
+                        <Card>
+                            <Statistic 
+                                title="最高分" 
+                                value={statistics.maxScore} 
+                                suffix="分"
+                            />
+                        </Card>
                     </Col>
-                    <Col span={4}>
-                        <Statistic
-                            title="及格率"
-                            value={stats.totalCount ? (stats.passCount / stats.totalCount * 100) : 0}
-                            suffix="%"
-                            precision={1}
-                            valueStyle={{ 
-                                color: stats.totalCount && (stats.passCount / stats.totalCount >= 0.6) 
-                                    ? '#3f8600' 
-                                    : '#cf1322' 
-                            }}
-                        />
-                    </Col>
-                    <Col span={4}>
-                        <Statistic
-                            title="总人数"
-                            value={stats.totalCount}
-                            suffix="人"
-                        />
+                    <Col span={6}>
+                        <Card>
+                            <Statistic 
+                                title="最低分" 
+                                value={statistics.minScore} 
+                                suffix="分"
+                            />
+                        </Card>
                     </Col>
                 </Row>
-            </Card>
 
-            {/* 成绩列表 */}
-            <Card 
-                title="成绩列表" 
-                className="shadow-md"
-            >
-                <Table 
-                    columns={columns}
-                    dataSource={results}
-                    rowKey="id"
-                    loading={loading}
-                    pagination={{
-                        pageSize: 10,
-                        showTotal: (total) => `共 ${total} 条记录`,
-                        showSizeChanger: true,
-                        showQuickJumper: true
-                    }}
-                    locale={{
-                        emptyText: '暂无成绩数据'
-                    }}
-                />
-            </Card>
+                {/* 成绩列表 */}
+                <Card>
+                    <Table
+                        columns={columns}
+                        dataSource={results || []}
+                        rowKey="id"
+                        loading={loading}
+                        pagination={{
+                            pageSize: 10,
+                            showTotal: (total) => `共 ${total} 条记录`,
+                        }}
+                    />
+                </Card>
+            </Space>
         </div>
     );
 } 
