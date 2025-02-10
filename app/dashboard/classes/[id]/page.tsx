@@ -131,23 +131,49 @@ export default function ClassPage({ params }: { params: { id: string } }) {
   const fetchStudents = async (search?: string) => {
     try {
       setLoading(true);
-      const searchParams = search
-        ? `?search=${encodeURIComponent(search)}`
-        : "";
-      const response = await axiosInstance.get(
-        `/api/classes/${params.id}${searchParams}`
-      );
-
-      const formattedStudents = response.data.students.map((student: any) => ({
-        id: student.id,
-        name: student.name,
-        studentId: student.studentId,
-        joinTime: student.joinTime,
-      }));
-
+      const searchParams = search ? `?search=${encodeURIComponent(search)}` : "";
+      const url = `/api/classes/${params.id}${searchParams}`;
+      
+      // 添加请求 URL 日志
+      console.log("Fetching students from:", url);
+      
+      const response = await axiosInstance.get(url);
+      
+      // 添加原始响应数据日志
+      console.log("API Response:", response.data);
+      
+      // 检查 students 数组是否存在
+      if (!response.data.students) {
+        console.error("No students array in response:", response.data);
+        message.error("获取学生数据格式错误");
+        return;
+      }
+      
+      // 添加学生数组日志
+      console.log("Students array:", response.data.students);
+      
+      const formattedStudents = response.data.students.map((student: any) => {
+        // 添加单个学生数据处理日志
+        console.log("Processing student:", student);
+        
+        return {
+          id: student.id,
+          name: student.name,
+          studentId: student.studentId,
+          joinTime: student.joinTime,
+        };
+      });
+      
+      // 添加最终格式化数据日志
+      console.log("Formatted students:", formattedStudents);
       setStudents(formattedStudents);
     } catch (error) {
-      console.error("Error fetching students:", error);
+      // 改进错误日志
+      console.error("Error fetching students:", {
+        error,
+        message: error instanceof Error ? error.message : "Unknown error",
+        response: error
+      });
       message.error("获取学生列表失败");
     } finally {
       setLoading(false);

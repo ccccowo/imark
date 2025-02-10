@@ -42,6 +42,7 @@ export default function StudentClassView({ params }: { params: { id: string } })
     const [exams, setExams] = useState<Exam[]>([]);
     const [loading, setLoading] = useState(true);
     const [studentId, setStudentId] = useState<string>('');
+    const [studentName, setStudentName] = useState<string>('');
 
     // 获取班级信息
     const fetchClassInfo = async () => {
@@ -85,11 +86,17 @@ export default function StudentClassView({ params }: { params: { id: string } })
     }, [params.id]);
 
     useEffect(() => {
-        const fetchStudentId = async () => {
-            const response = await axiosInstance.get('/api/students/profile');
-            setStudentId(response.data.studentId);
+        const fetchStudentProfile = async () => {
+            try {
+                const response = await axiosInstance.get('/api/students/profile');
+                setStudentId(response.data.studentId);
+                setStudentName(response.data.name);
+            } catch (error) {
+                console.error('获取学生信息失败:', error);
+                message.error('获取学生信息失败');
+            }
         };
-        fetchStudentId();
+        fetchStudentProfile();
     }, []);
 
     // 获取考试状态标签
@@ -170,20 +177,26 @@ export default function StudentClassView({ params }: { params: { id: string } })
                         </span>
                     </div>
                 </div>
-                <Button 
-                    danger
-                    onClick={() => {
-                        Modal.confirm({
-                            title: '确认退出班级',
-                            content: '退出后将无法查看班级信息和考试记录，确定要退出吗？',
-                            okText: '确认退出',
-                            cancelText: '取消',
-                            onOk: handleLeaveClass
-                        });
-                    }}
-                >
-                    退出班级
-                </Button>
+                <Space>
+                    <Space size="large">
+                        <Text>姓名：{studentName}</Text>
+                        <Text>学号：{studentId}</Text>
+                    </Space>
+                    <Button 
+                        danger
+                        onClick={() => {
+                            Modal.confirm({
+                                title: '确认退出班级',
+                                content: '退出后将无法查看班级信息和考试记录，确定要退出吗？',
+                                okText: '确认退出',
+                                cancelText: '取消',
+                                onOk: handleLeaveClass
+                            });
+                        }}
+                    >
+                        退出班级
+                    </Button>
+                </Space>
             </div>
 
             <Card>
@@ -200,47 +213,52 @@ export default function StudentClassView({ params }: { params: { id: string } })
                     <div>
                         <Title level={5}>考试列表</Title>
                         {exams.length > 0 ? (
-                            <List
-                                dataSource={exams}
-                                renderItem={(exam) => (
-                                    <List.Item
-                                        actions={[
-                                            <Button
-                                                key="view"
-                                                type="link"
-                                                icon={<EyeOutlined />}
-                                                onClick={() => handleViewExamDetail(exam.id)}
-                                            >
-                                                查看批改详情
-                                            </Button>
-                                        ]}
-                                    >
-                                        <Row className="w-full" align="middle" justify="space-between">
-                                            <Col>
-                                                <Space>
-                                                    <Text>{exam.name}</Text>
-                                                    <Tag color={exam.status === 'COMPLETED' ? 'green' : 'blue'}>
-                                                        {exam.status === 'COMPLETED' ? '已完成' : '进行中'}
-                                                    </Tag>
-                                                    {(() => {
-                                                        const examinee = exam.examinees?.find(e => e.studentId === studentId);
-                                                        return examinee?.totalScore !== undefined && (
-                                                            <Tag color={examinee.totalScore >= 60 ? 'success' : 'error'}>
-                                                                {examinee.totalScore}分
-                                                            </Tag>
-                                                        );
-                                                    })()}
-                                                </Space>
-                                            </Col>
-                                            <Col>
-                                                <Text type="secondary">
-                                                    {new Date(exam.createdAt).toLocaleString()}
-                                                </Text>
-                                            </Col>
-                                        </Row>
-                                    </List.Item>
-                                )}
-                            />
+                            <Row gutter={[16, 16]}>
+                                {exams.map((exam) => (
+                                    <Col key={exam.id} xs={24} sm={12} md={8} lg={8} xl={6}>
+                                        <Card
+                                            hoverable
+                                            className="h-full"
+                                            actions={[
+                                                <Button
+                                                    key="view"
+                                                    type="link"
+                                                    icon={<EyeOutlined />}
+                                                    onClick={() => handleViewExamDetail(exam.id)}
+                                                >
+                                                    查看批改详情
+                                                </Button>
+                                            ]}
+                                        >
+                                            <div className="flex flex-col h-full">
+                                                <div className="mb-4">
+                                                    <Title level={5} className="mb-2 !mt-0">
+                                                        {exam.name}
+                                                    </Title>
+                                                    <Space direction="vertical" size="small" className="w-full">
+                                                        <Tag color={exam.status === 'COMPLETED' ? 'green' : 'blue'}>
+                                                            {exam.status === 'COMPLETED' ? '已完成' : '进行中'}
+                                                        </Tag>
+                                                        {(() => {
+                                                            const examinee = exam.examinees?.find(e => e.studentId === studentId);
+                                                            return examinee?.totalScore !== undefined && (
+                                                                <Tag color={examinee.totalScore >= 60 ? 'success' : 'error'}>
+                                                                    得分：{examinee.totalScore}分
+                                                                </Tag>
+                                                            );
+                                                        })()}
+                                                    </Space>
+                                                </div>
+                                                <div className="mt-auto">
+                                                    <Text type="secondary" className="text-sm">
+                                                        创建时间：{new Date(exam.createdAt).toLocaleString()}
+                                                    </Text>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    </Col>
+                                ))}
+                            </Row>
                         ) : (
                             <Empty description="暂无考试" />
                         )}

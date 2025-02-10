@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Space, Button, Table, Upload, message, Input, Modal, Tag } from 'antd'
+import { Space, Button, Table, Upload, message, Input, Modal, Tag, Typography } from 'antd'
 import { UploadOutlined, UserOutlined, IdcardOutlined, CalendarOutlined, DeleteOutlined, ExclamationCircleOutlined, SearchOutlined } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import * as XLSX from 'xlsx'
 import axiosInstance from '@/lib/axios'
 import { Student } from '@/app/types'
+import { useSession } from 'next-auth/react'
 
 interface StudentManagementProps {
     students: Student[]
@@ -23,6 +24,7 @@ interface StudentManagementProps {
 }
 
 const { Search } = Input
+const { Text } = Typography;
 
 export default function StudentManagement({
     students,
@@ -36,24 +38,64 @@ export default function StudentManagement({
     EditableCell,
     onDelete
 }: StudentManagementProps) {
+    const { data: session } = useSession();
+
     const isEditing = (record: Student, field: string) => 
         record.id === editingKey && editingField === field
 
     const handleImportStudents = async (data: any[]) => {
         try {
+            // 验证和转换数据格式
+            const formattedData = data.map((item: any) => {
+                // 检查必要字段
+                if (!item.name || !item.studentId) {
+                    throw new Error('Excel文件必须包含 name(姓名) 和 studentId(学号) 列');
+                }
+                
+                return {
+                    name: String(item.name).trim(),
+                    studentId: String(item.studentId).trim()
+                };
+            });
+
+            // 验证是否有数据
+            if (formattedData.length === 0) {
+                message.error('Excel文件中没有有效的学生数据');
+                return;
+            }
+
             const response = await axiosInstance.post(`/api/classes/${classId}/import-students`, {
-                students: data
-            })
+                students: formattedData
+            });
             
             if (response.status === 200) {
-                message.success('导入成功')
-                onStudentUpdate()
+                message.success(`成功导入 ${formattedData.length} 名学生`);
+                onStudentUpdate();
             }
-        } catch (error) {
-            message.error('导入失败')
-            console.error(error)
+        } catch (error: any) {
+            if (error.message) {
+                message.error(error.message);
+            } else {
+                message.error('导入失败，请检查文件格式是否正确');
+            }
+            console.error('导入失败:', error);
         }
     }
+
+    // 添加Excel模板下载功能
+    const downloadTemplate = () => {
+        const template = XLSX.utils.book_new();
+        const templateData = [
+            { name: '张三', studentId: '2024001' },
+            { name: '李四', studentId: '2024002' }
+        ];
+        
+        const worksheet = XLSX.utils.json_to_sheet(templateData);
+        XLSX.utils.book_append_sheet(template, worksheet, '学生信息');
+        
+        // 保存文件
+        XLSX.writeFile(template, '学生导入模板.xlsx');
+    };
 
     const columns: ColumnsType<Student> = [
         {
@@ -170,14 +212,22 @@ export default function StudentManagement({
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                    <UserOutlined className="mr-2 text-blue-500" />
-                    学生管理
-                    <Tag color="blue" className="ml-3 text-sm">
-                        {students.length} 名学生
-                    </Tag>
-                </h2>
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                        <UserOutlined className="mr-2 text-blue-500" />
+                        学生管理
+                        <Tag color="blue" className="ml-3 text-sm">
+                            {students.length} 名学生
+                        </Tag>
+                    </h2>
+                </div>
                 <Space>
+                    <Upload {...uploadProps}>
+                        <Button icon={<UploadOutlined />}>导入学生</Button>
+                    </Upload>
+                    <Button onClick={downloadTemplate} type="link">
+                        下载导入模板
+                    </Button>
                     <Search
                         placeholder="搜索姓名或学号"
                         allowClear
@@ -191,6 +241,8 @@ export default function StudentManagement({
                             icon: <ExclamationCircleOutlined className="text-blue-500" />,
                             content: (
                                 <div className="mt-4">
+                                    <p>• 点击"导入学生"可以批量导入学生信息</p>
+                                    <p>• 请先下载导入模板，按模板格式填写</p>
                                     <p>• 双击姓名或学号可以直接编辑</p>
                                     <p>• 编辑完成后按回车键保存</p>
                                     <p>• 点击删除按钮可以移除学生</p>

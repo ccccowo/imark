@@ -210,9 +210,33 @@ export default function BatchSettingsModal({
             answerArray[i] = sortedChoices.join('');
           }
         } else if (group.type === 'TRUE_FALSE') {
-          answerArray = answers.toUpperCase().split('');
+          // 修改：先转大写，去除空格，然后再拆分成数组
+          answerArray = answers.toUpperCase().trim().split(/\s+/);
+          
+          // 验证判断题答案格式
           if (!answerArray.every(ans => /^[TF]$/.test(ans))) {
             message.error('判断题答案必须是T或F');
+            return;
+          }
+
+          // 验证答案数量
+          if (answerArray.length !== group.questions.length) {
+            message.error(`判断题答案数量不匹配，需要 ${group.questions.length} 个答案`);
+            return;
+          }
+        } else if (group.type === 'SHORT_ANSWER') {
+          // 简答题答案处理
+          answerArray = answers.split('|||').map((answer: string) => answer.trim());
+          
+          // 验证答案数量
+          if (answerArray.length !== group.questions.length) {
+            message.error(`简答题答案数量不匹配，需要 ${group.questions.length} 个答案`);
+            return;
+          }
+          
+          // 验证每个答案不能为空
+          if (answerArray.some(answer => !answer)) {
+            message.error('简答题答案不能为空');
             return;
           }
         }
@@ -309,19 +333,37 @@ export default function BatchSettingsModal({
               group.type === 'MULTIPLE_CHOICE' ? 
                 `请输入${group.questions.length}组选项，用空格分隔` :
               group.type === 'TRUE_FALSE' ? 
-                `请输入${group.questions.length}个T或F` : ''
+                `请输入${group.questions.length}个T或F` :
+              group.type === 'SHORT_ANSWER' ?
+                `请输入${group.questions.length}个答案，用|||分隔` : ''
             }
           >
             <Input.TextArea 
               placeholder={
                 group.type === 'SINGLE_CHOICE' ? 'C A B D' :
                 group.type === 'MULTIPLE_CHOICE' ? 'AB ABC CD' :
-                group.type === 'TRUE_FALSE' ? 'T F T F' : ''
+                group.type === 'TRUE_FALSE' ? 'T F T F' :
+                group.type === 'SHORT_ANSWER' ? '答案1|||答案2|||答案3' : ''
               }
+              autoSize={{ minRows: group.type === 'SHORT_ANSWER' ? 4 : 2 }}
+              className={group.type === 'SHORT_ANSWER' ? 'font-mono' : ''}
             />
           </Form.Item>
         ))}
       </Form>
+
+      {/* 添加简答题答案格式说明 */}
+      {questionGroups.some(group => group.type === 'SHORT_ANSWER') && (
+        <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+          <h4 className="font-medium text-blue-600 mb-2">简答题答案格式说明：</h4>
+          <ul className="list-disc list-inside text-gray-600 space-y-1">
+            <li>每个答案之间使用 ||| (三个竖线) 分隔</li>
+            <li>答案可以包含多行文本</li>
+            <li>答案前后的空格会被自动去除</li>
+            <li>所有答案都不能为空</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 
@@ -422,7 +464,6 @@ export default function BatchSettingsModal({
               </Form.Item>
             </Form>
             <Button 
-              type="primary" 
               onClick={handleAdd}
               className="w-full mt-2"
               disabled={availableRange.length === 0}

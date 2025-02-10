@@ -15,6 +15,11 @@ export async function GET(
       return NextResponse.json({ error: "未授权" }, { status: 401 });
     }
 
+    // 获取搜索参数
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search');
+
+    // 获取班级基本信息
     const classInfo = await prisma.class.findUnique({
       where: {
         id: params.id
@@ -25,12 +30,6 @@ export async function GET(
             name: true,
             username: true
           }
-        },
-        students: true,
-        _count: {
-          select: {
-            students: true
-          }
         }
       }
     });
@@ -39,11 +38,55 @@ export async function GET(
       return NextResponse.json({ error: "未找到班级" }, { status: 404 });
     }
 
-    return NextResponse.json(classInfo);
+    // 获取班级学生列表
+    const studentClasses = await prisma.studentClass.findMany({
+      where: {
+        classId: params.id,
+        ...(search ? {
+          OR: [
+            { student: { name: { contains: search } } },
+            { student: { studentId: { contains: search } } }
+          ]
+        } : {})
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            studentId: true
+          }
+        }
+      },
+      orderBy: {
+        joinTime: 'desc'
+      }
+    });
+
+    // 格式化学生数据
+    const students = studentClasses.map(sc => ({
+      id: sc.student.id,
+      name: sc.student.name,
+      studentId: sc.student.studentId,
+      joinTime: sc.joinTime
+    }));
+
+    // 添加调试日志
+    console.log('Fetched class info:', classInfo);
+    console.log('Fetched students:', students);
+
+    return NextResponse.json({
+      ...classInfo,
+      students
+    });
+
   } catch (error) {
     console.error('获取班级信息失败:', error);
     return NextResponse.json(
-      { error: "获取班级信息失败" },
+      { 
+        error: "获取班级信息失败",
+        details: error instanceof Error ? error.message : '未知错误'
+      },
       { status: 500 }
     );
   }

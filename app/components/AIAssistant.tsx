@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { FloatButton, Drawer, Segmented } from 'antd';
+import { FloatButton, Drawer, Segmented, Modal, Input, message } from 'antd';
 import { 
     RobotOutlined, 
     UserOutlined, 
@@ -13,6 +13,7 @@ import {
 import { Bubble, Sender, Suggestion, Welcome, Prompts } from '@ant-design/x';
 import type { GetProp } from 'antd';
 import axiosInstance from '@/lib/axios';
+import { useSession } from 'next-auth/react';
 
 // 预设的对话示例
 const SUGGESTIONS = {
@@ -144,7 +145,8 @@ type PromptItem = {
 };
 
 export default function AIAssistant() {
-    const [open, setOpen] = useState(false);
+    const { data: session, status } = useSession();
+    const [isOpen, setIsOpen] = useState(false);
     const [mode, setMode] = useState<'qa' | 'execute'>('qa');
     const [loading, setLoading] = useState(false);
     const [content, setContent] = useState('');
@@ -153,6 +155,11 @@ export default function AIAssistant() {
         message: string;
         status: 'loading' | 'success' | 'error' | 'local';
     }>>([]);
+
+    // 如果未登录，不渲染任何内容
+    if (status !== 'authenticated' || !session) {
+        return null;
+    }
 
     // 使用useCallback处理请求
     const handleRequest = useCallback(async (message: string) => {
@@ -242,14 +249,13 @@ export default function AIAssistant() {
         <div style={{ position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 1000 }}>
             <FloatButton
                 icon={<RobotOutlined />}
-                type="primary"
-                style={{ right: 24, bottom: 24, zIndex: 1001 }}
-                onClick={() => setOpen(true)}
+                onClick={() => setIsOpen(true)}
+                tooltip="AI助手"
             />
             
             <Drawer
-                open={open}
-                onClose={() => setOpen(false)}
+                open={isOpen}
+                onClose={() => setIsOpen(false)}
                 placement="right"
                 width={420}
                 title={

@@ -233,77 +233,112 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="bg-gradient-animated flex items-center justify-center">
-        <Card 
-          style={{ width: 400 }}
-          className="glass-card hover:shadow-xl transition-shadow duration-300 border-0"
-        >
-          <h1 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">
-            智能阅卷平台
-          </h1>
-          
-          <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 hover:border-blue-200 transition-colors duration-300">
-            <div className="flex gap-4">
-              <Button
-                type={role === "STUDENT" ? "primary" : "default"}
-                icon={<BookOutlined />}
-                onClick={() => setRole("STUDENT")}
-                block
-                size="large"
-                className={`
-                  ${role === "STUDENT" ? "shadow-md bg-gradient-to-r from-blue-500 to-blue-600" : ""}
-                  hover:scale-105 transform transition-all duration-200
-                  hover:border-blue-400
-                `}
-                style={{ 
-                  borderColor: role === "STUDENT" ? undefined : '#d9d9d9',
-                  color: role === "STUDENT" ? undefined : '#595959'
-                }}
-              >
-                我是学生
-              </Button>
-              <Button
-                type={role === "TEACHER" ? "primary" : "default"}
-                icon={<UserOutlined />}
-                onClick={() => setRole("TEACHER")}
-                block
-                size="large"
-                className={`
-                  ${role === "TEACHER" ? "shadow-md bg-gradient-to-r from-blue-500 to-blue-600" : ""}
-                  hover:scale-105 transform transition-all duration-200
-                  hover:border-blue-400
-                `}
-                style={{ 
-                  borderColor: role === "TEACHER" ? undefined : '#d9d9d9',
-                  color: role === "TEACHER" ? undefined : '#595959'
-                }}
-              >
-                我是教师
-              </Button>
-            </div>
-            <div className="text-center mt-3">
-              <Text type="secondary" className="text-sm">
-                当前选择：
-                <span className="text-blue-600 font-medium ml-1">
-                  {role === "STUDENT" ? "学生" : "教师"}身份
-                </span>
-              </Text>
-            </div>
-          </Card>
-          
-          <Tabs 
-            items={items} 
-            centered
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            className="custom-tabs"
-            style={{ 
-              color: '#262626',
-            }}
-          />
-        </Card>
-      </div>
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+        <div className="flex items-center justify-center min-h-screen p-8">
+            <Card 
+                className="w-[420px] shadow-2xl hover:shadow-xl transition-all duration-300 border-0 backdrop-blur-sm bg-white/90"
+                bodyStyle={{ padding: '2rem' }}
+            >
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                        智能阅卷平台
+                    </h1>
+                    <p className="text-gray-500 mt-2">欢迎使用智能阅卷系统</p>
+                </div>
+
+                <Card 
+                    className="mb-6 hover:shadow-md transition-all duration-300"
+                    bodyStyle={{ padding: '1.5rem' }}
+                >
+                    <div className="flex gap-4">
+                        <Button
+                            type={role === "STUDENT" ? "primary" : "default"}
+                            icon={<BookOutlined />}
+                            onClick={() => setRole("STUDENT")}
+                            block
+                            size="large"
+                            className={`
+                                ${role === "STUDENT" ? 
+                                    "shadow-md bg-gradient-to-r from-blue-500 to-blue-600" : 
+                                    "hover:border-blue-400"
+                                }
+                                transform transition-all duration-200
+                                hover:scale-102 hover:shadow-md
+                            `}
+                        >
+                            我是学生
+                        </Button>
+                        <Button
+                            type={role === "TEACHER" ? "primary" : "default"}
+                            icon={<UserOutlined />}
+                            onClick={() => setRole("TEACHER")}
+                            block
+                            size="large"
+                            className={`
+                                ${role === "TEACHER" ? 
+                                    "shadow-md bg-gradient-to-r from-blue-500 to-blue-600" : 
+                                    "hover:border-blue-400"
+                                }
+                                transform transition-all duration-200
+                                hover:scale-102 hover:shadow-md
+                            `}
+                        >
+                            我是教师
+                        </Button>
+                    </div>
+                    <div className="text-center mt-3">
+                        <Text type="secondary" className="text-sm">
+                            当前选择：
+                            <span className="text-blue-600 font-medium ml-1">
+                                {role === "STUDENT" ? "学生" : "教师"}身份
+                            </span>
+                        </Text>
+                    </div>
+                </Card>
+
+                <Tabs 
+                    items={items}
+                    centered
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    className="auth-tabs"
+                />
+
+                <style jsx global>{`
+                    .auth-tabs .ant-tabs-nav::before {
+                        border-bottom: none;
+                    }
+                    .auth-tabs .ant-tabs-tab {
+                        font-size: 16px;
+                        padding: 12px 0;
+                        margin: 0 24px;
+                    }
+                    .auth-tabs .ant-tabs-tab-active {
+                        font-weight: 600;
+                    }
+                    .auth-tabs .ant-tabs-ink-bar {
+                        background: linear-gradient(to right, #2563eb, #4f46e5);
+                        height: 3px;
+                        border-radius: 3px;
+                    }
+                    .ant-input-affix-wrapper {
+                        padding: 8px 11px;
+                        border-radius: 8px;
+                    }
+                    .ant-input-affix-wrapper:hover {
+                        border-color: #4f46e5;
+                    }
+                    .ant-input-affix-wrapper-focused {
+                        border-color: #4f46e5;
+                        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+                    }
+                    .ant-btn {
+                        border-radius: 8px;
+                        height: 45px;
+                    }
+                `}</style>
+            </Card>
+        </div>
     </main>
   );
 }

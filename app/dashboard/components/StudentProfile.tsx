@@ -161,7 +161,6 @@ export function StudentProfile({ session, onProfileUpdate, forceComplete }: Stud
 
                         <Form.Item>
                             <Button 
-                                type="primary" 
                                 htmlType="submit" 
                                 loading={loading}
                                 block
@@ -233,7 +232,6 @@ export function StudentProfile({ session, onProfileUpdate, forceComplete }: Stud
 
                     <Form.Item>
                         <Button 
-                            type="primary" 
                             htmlType="submit" 
                             loading={loading}
                             block

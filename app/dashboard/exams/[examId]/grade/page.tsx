@@ -373,7 +373,8 @@ export default function GradePage({ params }: { params: { examId: string } }) {
 
   // 预处理未优化的图片
   const preprocessImages = async (answers: AnswerQuestion[]) => {
-    const unprocessedAnswers = answers.filter(answer => !answer.answerQuestionImageCOS);
+    // const unprocessedAnswers = answers.filter(answer => !answer.answerQuestionImageCOS);
+    const unprocessedAnswers = answers
 
     if (unprocessedAnswers.length > 0) {
       setProcessingImages(true);
